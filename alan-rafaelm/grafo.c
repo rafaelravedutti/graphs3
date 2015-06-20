@@ -8,13 +8,16 @@ struct lista {
 
 struct no {
   void *conteudo;
-  unsigned int destino;
   struct no *proximo;
 };
 
 struct vertice {
   char *nome;
   lista vertice_lista;
+};
+
+struct aresta {
+  unsigned int destino;
 };
 
 struct grafo {
@@ -95,9 +98,10 @@ unsigned int encontra_vertice_indice(struct vertice *vertices, unsigned int n_ve
 grafo le_grafo(FILE *input) {
   Agraph_t *g;
   Agnode_t *v;
-  Agedge_t *a;
+  Agedge_t *e;
   struct grafo *grafo_lido;
   struct no *n;
+  struct aresta *a;
   unsigned int i;
 
   /* Aloca a estrutura do grafo */
@@ -141,19 +145,24 @@ grafo le_grafo(FILE *input) {
       for(i = 0, v = agfstnode(g); i < grafo_lido->n_vertices; ++i, v = agnxtnode(g, v)) {
         if(grafo_lido->vertices[i].vertice_lista != NULL) {
           /* Percorre todas as arestas adjacentes do vértice */
-          for(a = agfstedge(g, v); a != NULL; a = agnxtedge(g, a, v)) {
+          for(e = agfstedge(g, v); e != NULL; e = agnxtedge(g, e, v)) {
             /* Aloca o novo nó da aresta */
             n = (struct no *) malloc(sizeof(struct no));
 
             /* Adiciona o nó da aresta na lista de adjacência do vértice */
             if(n != NULL) {
               n->proximo = grafo_lido->vertices[i].vertice_lista->primeiro;
+              n->conteudo = malloc(sizeof(struct aresta));
 
-              /* Define o destino da aresta */
-              if(strcmp(grafo_lido->vertices[i].nome, agnameof(aghead(a))) == 0) {
-                n->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(agtail(a)));
-              } else {
-                n->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(aghead(a)));
+              if(n->conteudo != NULL) {
+                a = (struct aresta *) n->conteudo;
+
+                /* Define o destino da aresta */
+                if(strcmp(grafo_lido->vertices[i].nome, agnameof(aghead(e))) == 0) {
+                  a->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(agtail(e)));
+                } else {
+                  a->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(aghead(e)));
+                }
               }
 
               grafo_lido->vertices[i].vertice_lista->primeiro = n;
@@ -208,6 +217,7 @@ int destroi_grafo(void *g) {
 //------------------------------------------------------------------------------
 grafo escreve_grafo(FILE *output, grafo g) {
   struct no *n;
+  struct aresta *a;
   char caractere_aresta;
   unsigned int i;
 
@@ -230,8 +240,10 @@ grafo escreve_grafo(FILE *output, grafo g) {
   /* Imprime as arestas */
   for(i = 0; i < g->n_vertices; ++i) {
     for(n = primeiro_no(g->vertices[i].vertice_lista); n != NULL; n = proximo_no(n)) {
-      if(g->direcionado || i < n->destino) {
-        fprintf(output, "    \"%s\" -%c \"%s\"\n", g->vertices[i].nome, caractere_aresta, g->vertices[n->destino].nome);
+      a = (struct aresta *) n->conteudo;
+
+      if(g->direcionado || i < a->destino) {
+        fprintf(output, "    \"%s\" -%c \"%s\"\n", g->vertices[i].nome, caractere_aresta, g->vertices[a->destino].nome);
       }
     }
   }
@@ -257,11 +269,19 @@ int direcionado(grafo g) {
 
 //------------------------------------------------------------------------------
 int conexo(grafo g) {
+  if(g->direcionado) {
+    return 0;
+  }
+
   return 0;
 }
 
 //------------------------------------------------------------------------------
 grafo arvore_geradora_minima(grafo g) {
+  if(g->direcionado) {
+    return NULL;
+  }
+
   return g;
 }
 
@@ -272,11 +292,19 @@ lista componentes(grafo g) {
 
 //------------------------------------------------------------------------------
 lista blocos(grafo g) {
+  if(g->direcionado) {
+    return NULL;
+  }
+
   return NULL;
 }
 
 //------------------------------------------------------------------------------
 lista ordena(grafo g) {
+  if(!g->direcionado) {
+    return NULL;
+  }
+
   return NULL;
 }
 
