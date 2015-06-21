@@ -1,5 +1,6 @@
 #include <stdlib.h>
-#include <cgraph.h>
+#include <graphviz/cgraph.h>
+#include "string.h"
 #include "grafo.h"
 
 struct lista {
@@ -287,6 +288,26 @@ grafo arvore_geradora_minima(grafo g) {
 
 //------------------------------------------------------------------------------
 lista componentes(grafo g) {
+  struct lista *lista_componentes, *lista_vertices;
+  struct grafo *grafo_aux;
+  struct no *n;
+  struct aresta *a;
+  unsigned int i;
+
+  /* Inicializa a lista de componentes */
+  inicializa_lista(lista_componentes);
+  /* Inicializa o conjunto de vertices */
+  inicializa_lista(lista_vertices);
+
+  componentes = (struct grafo *) malloc(sizeof(struct grafo));
+  C = V = NULL;
+  while V != V(G){
+    V = um v de V(G) - V
+    X = busca_c_c(G,v)
+    C += G[X]
+    V += V(X)
+  }
+  return C;
   return NULL;
 }
 
@@ -326,6 +347,16 @@ int fortemente_conexo(grafo g) {
 //------------------------------------------------------------------------------
 long int diametro(grafo g) {
   return 0;
+}
+
+//----------------------------Funções extras auxiliares-------------------------
+void inicializa_lista(lista * l){
+  /* Aloca espaço pra lista */
+  l = (struct lista *) malloc(sizeof(struct lista));
+  /* Inicia lista vazia */
+  if(l != NULL) {
+    l->primeiro = NULL;
+  }
 }
 
 //------------------------------------------------------------------------------
