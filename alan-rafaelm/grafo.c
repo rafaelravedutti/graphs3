@@ -18,6 +18,7 @@ struct vertice {
 };
 
 struct aresta {
+  unsigned int origem;
   unsigned int destino;
 };
 
@@ -28,6 +29,24 @@ struct grafo {
   unsigned int n_vertices;
   vertice vertices;
 };
+
+//------------------------------------------------------------------------------
+void insere_cabeca(lista l, no n) {
+  n->proximo = l->primeiro;
+  l->primeiro = n;
+}
+
+//------------------------------------------------------------------------------
+void insere_cabeca_conteudo(lista l, void *conteudo) {
+  struct no *n;
+
+  n = (struct no *) malloc(sizeof(struct no));
+
+  if(n != NULL) {
+    n->conteudo = conteudo;
+    insere_cabeca(l, n);
+  }
+}
 
 //------------------------------------------------------------------------------
 no primeiro_no(lista l) {
@@ -56,18 +75,18 @@ int _destroi(void *p) {
 
 //------------------------------------------------------------------------------
 int destroi_lista(lista l, int destroi(void *)) {
-  if(!l) {
+  struct no *n, *prox;
+
+  if(l == NULL) {
     return 0;
   }
 
-  no n, prox;
-
-  for(n = primeiro_no(l); n != NULL; n = prox) {
-    prox = proximo_no(n);
-
-    if(destroi)
+  for(n = l->primeiro; n != NULL; n = prox) {
+    if(destroi) {
       destroi(conteudo(n));
+    }
 
+    prox = n->proximo;
     free(n);
   }
 
@@ -160,9 +179,11 @@ grafo le_grafo(FILE *input) {
 
                 /* Define o destino da aresta */
                 if(strcmp(grafo_lido->vertices[i].nome, agnameof(aghead(e))) == 0) {
+                  a->origem = i;
                   a->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(agtail(e)));
                 } else {
-                  a->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(aghead(e)));
+                  a->destino = i;
+                  a->origem = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(aghead(e)));
                 }
               }
 
@@ -270,11 +291,23 @@ int direcionado(grafo g) {
 
 //------------------------------------------------------------------------------
 int conexo(grafo g) {
+  struct lista *comp;
+  int retorno;
+
+  retorno = 0;
+
   if(g->direcionado) {
     return 0;
   }
 
-  return 0;
+  comp = componentes(g);
+
+  if(comp->primeiro != NULL && comp->primeiro->proximo == NULL) {
+    retorno = 1;
+  }
+
+  destroi_lista(comp, _destroi);
+  return retorno;
 }
 
 //------------------------------------------------------------------------------
@@ -322,11 +355,77 @@ lista blocos(grafo g) {
 
 //------------------------------------------------------------------------------
 lista ordena(grafo g) {
+  struct lista *l, *s;
+  struct no *cauda, *n, *m;
+  struct vertice *v;
+  struct aresta *a;
+  int adiciona;
+  unsigned int i, j, n_arestas, tamanho_s = 0;
+
   if(!g->direcionado) {
     return NULL;
   }
 
-  return NULL;
+  l = (struct lista *) malloc(sizeof(struct lista));
+
+  if(l != NULL) {
+    s = (struct lista *) malloc(sizeof(struct lista));
+
+    if(s != NULL) {
+      for(i = 0; i < g->n_vertices; ++i) {
+        adiciona = 1;
+
+        for(n = g->vertices[i].vertice_lista->primeiro; n != NULL; n = n->proximo) {
+          a = (struct aresta *) n->conteudo;
+          if(a->destino == i) {
+            adiciona = 0;
+          }
+
+          ++n_arestas;
+        }
+
+        if(adiciona) {
+          insere_cabeca_conteudo(s, g->vertices + i);
+          ++tamanho_s;
+        }
+      }
+
+      while(tamanho_s > 0) {
+        n = s->primeiro;
+        s->primeiro = s->primeiro->proximo;
+
+        cauda->proximo = n;
+        cauda = n;
+
+        v = (struct vertice *) n->conteudo;
+        for(m = v->vertice_lista->primeiro; m != NULL; m = m->proximo) {
+          a = (struct aresta *) m->conteudo;
+          j = a->destino;
+          //remove aresta a
+
+          adiciona = 1;
+
+          for(n = g->vertices[j].vertice_lista->primeiro; n != NULL; n = n->proximo) {
+            a = (struct aresta *) n->conteudo;
+            if(a->destino == j) {
+              adiciona = 0;
+            }
+          }
+
+          if(adiciona) {
+            insere_cabeca_conteudo(s, g->vertices + j);
+            ++tamanho_s;
+          }
+        }
+
+        --tamanho_s;
+      }
+
+      free(s);
+    }
+  }
+
+  return l;
 }
 
 //------------------------------------------------------------------------------
