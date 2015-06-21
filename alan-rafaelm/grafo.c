@@ -14,7 +14,7 @@ struct no {
 
 struct vertice {
   char *nome;
-  lista vertice_lista;
+  lista arestas;
 };
 
 struct aresta {
@@ -154,16 +154,16 @@ grafo le_grafo(FILE *input) {
         grafo_lido->vertices[i].nome = strdup(agnameof(v));
 
         /* Aloca a lista de adjacência do vértice */
-        grafo_lido->vertices[i].vertice_lista = (struct lista *) malloc(sizeof(struct lista));
+        grafo_lido->vertices[i].arestas = (struct lista *) malloc(sizeof(struct lista));
 
-        if(grafo_lido->vertices[i].vertice_lista != NULL) {
-          grafo_lido->vertices[i].vertice_lista->primeiro = NULL;
+        if(grafo_lido->vertices[i].arestas != NULL) {
+          grafo_lido->vertices[i].arestas->primeiro = NULL;
         }
       }
 
       /* Percorre todos os vértices do grafo */
       for(i = 0, v = agfstnode(g); i < grafo_lido->n_vertices; ++i, v = agnxtnode(g, v)) {
-        if(grafo_lido->vertices[i].vertice_lista != NULL) {
+        if(grafo_lido->vertices[i].arestas != NULL) {
           /* Percorre todas as arestas adjacentes do vértice */
           for(e = agfstedge(g, v); e != NULL; e = agnxtedge(g, e, v)) {
             /* Aloca o novo nó da aresta */
@@ -171,7 +171,7 @@ grafo le_grafo(FILE *input) {
 
             /* Adiciona o nó da aresta na lista de adjacência do vértice */
             if(n != NULL) {
-              n->proximo = grafo_lido->vertices[i].vertice_lista->primeiro;
+              n->proximo = grafo_lido->vertices[i].arestas->primeiro;
               n->conteudo = malloc(sizeof(struct aresta));
 
               if(n->conteudo != NULL) {
@@ -187,7 +187,7 @@ grafo le_grafo(FILE *input) {
                 }
               }
 
-              grafo_lido->vertices[i].vertice_lista->primeiro = n;
+              grafo_lido->vertices[i].arestas->primeiro = n;
             }
           }
         }
@@ -221,8 +221,8 @@ int destroi_grafo(void *g) {
           free(g_ptr->vertices[i].nome);
         }
 
-        if(g_ptr->vertices[i].vertice_lista != NULL) {
-          destroi_lista(g_ptr->vertices[i].vertice_lista, _destroi);
+        if(g_ptr->vertices[i].arestas != NULL) {
+          destroi_lista(g_ptr->vertices[i].arestas, _destroi);
         }
       }
 
@@ -261,7 +261,7 @@ grafo escreve_grafo(FILE *output, grafo g) {
 
   /* Imprime as arestas */
   for(i = 0; i < g->n_vertices; ++i) {
-    for(n = primeiro_no(g->vertices[i].vertice_lista); n != NULL; n = proximo_no(n)) {
+    for(n = primeiro_no(g->vertices[i].arestas); n != NULL; n = proximo_no(n)) {
       a = (struct aresta *) n->conteudo;
 
       if(g->direcionado || i < a->destino) {
@@ -342,7 +342,7 @@ lista componentes(grafo g) {
     for(i = 0; i < g->n_vertices, n_lista_vertices == g->n_vertices ; ++i) {
       /*  Percorre todos os vértices do grafo procurando um não contido 
           em lista_vertices*/
-      for(n = g->vertices[i].vertice_lista->primeiro; n != NULL; n = n->proximo) {
+      for(n = g->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
         // v = (struct vertice *) n->conteudo;
         /* Caso v não esteja em lista_vertices */
         if (busca(lista_vertices, n_lista_vertices, n->conteudo)==-1){
@@ -392,7 +392,7 @@ void _ordena(grafo g, lista l, unsigned int v, unsigned char *v_processado, unsi
   struct aresta *a;
 
   v_processado[v] = 1;
-  for(n = g->vertices[v].vertice_lista->primeiro; n != NULL; n = n->proximo) {
+  for(n = g->vertices[v].arestas->primeiro; n != NULL; n = n->proximo) {
     a = (struct aresta *) n->conteudo;
 
     if(a->destino != v) {
@@ -472,26 +472,60 @@ void inicializa_lista(lista * l){
   }
 }
 
+//------------------------------------------------------------------------------
 lista busca_c_c(grafo g, vertice r){
-  struct lista *lista_vertices;
+  struct lista *vertices_x;
   struct grafo *componente_conexo;
-  struct no *n,*n2;
+  struct no *n,*v_fronteira;
   struct vertice *v;
-  unsigned int i, n_lista_vertices;
+  unsigned int n_vertices_x;
 
-  inicializa_lista(lista_vertices);
-  // X <- r;
-  insere_cabeca_conteudo(lista_vertices, r);
-  // Fronteira de X = Para cada v em X, chegar se possui aresta
-  // {v,a} onde a não está em X
-  for (n = lista_vertices->primeiro; n != NULL, v_fronteira == NULL; n = lista_vertices->prox){
-    // busca primeira aresta (n,m) onde m NÃO está em X
-    // X <- m
-  // while fronteira X != NULL{
-  //   e = e de fronteira X;
-  //   X += ponta de e de fora de X;
-  // }
-  return X;
+  inicializa_lista(vertices_x);
+  insere_cabeca_conteudo(vertices_x, r);
+  n_vertices_x = 1;
+  /* Obtem 1 vertice da fronteira de X se existir, se não NULL */
+  v_fronteira = fronteira(grafo g, lista vertices_x, unsigned int n_vertices_x);
+  while (v_fronteira){
+    /* Adiciona o vertice de  */
+    insere_cabeca_conteudo(vertices_x, v_fronteira);
+    n_vertices_x++;
+    v_fronteira = fronteira(grafo g, lista vertices_x, unsigned int n_vertices_x);
+  }
+  if (n_vertices_x == 1){
+    return NULL;
+  }
+  else{
+    if(componente_conexo = (struct grafo *) malloc(sizeof(struct grafo))) {
+      /* Inicializa a estrutura de grafo para retornar o componente conexo*/
+      componente_conexo->nome = (char *) NULL;
+      componente_conexo->vertices = vertices_x;
+      componente_conexo->direcionado = g->direcionado;
+      componente_conexo->n_vertices = (int) n_vertices_x;
+      return componente_conexo;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+/* Retorna um vértice de fronteira do conjunto X */
+vertice * fronteira(grafo g, lista vertices_x, unsigned int n_vertices_x){
+  struct no *n;
+  struct aresta *a;
+  unsigned int i;
+
+  /* Percorre todos os vértices em X */
+  for(i = 0; i < n_vertices_x; ++i) {
+    /* Para cada vértice em X, percorre as arestas */
+    for(n = primeiro_no(vertices_x[i].arestas); n != NULL; n = proximo_no(n)) {
+      a = (struct aresta *) n->conteudo;
+      /* Se não encontrar a->destino em X, então a->destino eh fronteira */
+      if (encontra_vertice_indice(vertices_x, n_vertices_x, g->vertices[a->destino].nome)==-1){
+        /* retorna a->destino */
+        return g->vertices[a->destino];
+      }
+    }
+  }
+  return NULL;
 }
 
 //------------------------------------------------------------------------------
