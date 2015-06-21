@@ -442,8 +442,88 @@ grafo distancias(grafo g) {
 }
 
 //------------------------------------------------------------------------------
+void _busca_profundidade(grafo g, unsigned int v, unsigned int *t, unsigned int *pre, unsigned int *pos) {
+  struct no *n;
+  struct aresta *a;
+
+  pre[v] = ++(*t);
+
+  for(n = g->vertices[v].arestas->primeiro; n != NULL; n = n->proximo) {
+    a = (struct aresta *) n->conteudo;
+
+    if(a->destino != v) {
+      if(pre[a->destino] != 0) {
+        _busca_profundidade(g, a->destino, t, pre, pos);
+      }
+    }
+  }
+
+  pos[v] = ++(*t);
+}
+
+//------------------------------------------------------------------------------
+void busca_profundidade(grafo g, unsigned int **pre, unsigned int **pos) {
+  unsigned int i, t = 0;
+
+  *pre = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
+  *pos = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
+
+  if(*pre != NULL && *pos != NULL) {
+    for(i = 0; i < g->n_vertices; ++i) {
+      pre[i] = 0;
+    }
+
+    for(i = 0; i < g->n_vertices; ++i) {
+      if(pre[i] == 0) {
+        _busca_profundidade(g, i, &t, *pre, *pos);
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+void _fortemente_conexo(grafo g, unsigned int i, unsigned int *t, unsigned int *pre, unsigned int *pos) {
+  struct no *n;
+  struct aresta *a;
+
+  pre[pos[i]] = ++(*t);
+
+  for(n = g->vertices[pos[i]].arestas->primeiro; n != NULL; n = n->proximo) {
+    a = (struct aresta *) n->conteudo;
+
+    if(a->origem != pos[i]) {
+      if(pre[a->origem] != 0) {
+        _fortemente_conexo(g, a->origem, t, pre, pos);
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 int fortemente_conexo(grafo g) {
-  return 0;
+  unsigned int *v_pai, *pre, *pos;
+  unsigned int i, t = 0, n_comp = 0;
+
+  busca_profundidade(g, &pre, &pos);
+
+  if(pre != NULL && pos != NULL) {
+    for(i = 0; i < g->n_vertices; ++i) {
+      pre[pos[i]] = 0;
+      v_pai[pos[i]] = (unsigned int) -1;
+    }
+
+    for(i = g->n_vertices; i > 0; --i) {
+      if(pre[pos[i - 1]] == 0) {
+        _fortemente_conexo(g, i - 1, &t, pre, pos);
+        ++n_comp;
+      }
+    }
+
+    free(pre);
+    free(pos);
+  }
+
+  return (n_comp < 2) ? 1 : 0;
 }
 
 //------------------------------------------------------------------------------
@@ -452,7 +532,7 @@ long int diametro(grafo g) {
 }
 
 //----------------------------Funções extras auxiliares-------------------------
-void inicializa_lista(lista * l){
+void inicializa_lista(lista *l) {
   /* Aloca espaço pra lista */
   l = (struct lista *) malloc(sizeof(struct lista));
   /* Inicia lista vazia */
@@ -474,18 +554,21 @@ lista busca_c_c(grafo g, vertice r){
   n_vertices_x = 1;
   /* Obtem 1 vertice da fronteira de X se existir, se não NULL */
   v_fronteira = fronteira(grafo g, lista vertices_x, unsigned int n_vertices_x);
-  while (v_fronteira){
+
+  while(v_fronteira) {
     /* Adiciona o vertice de  */
     insere_cabeca_conteudo(vertices_x, v_fronteira);
     n_vertices_x++;
     v_fronteira = fronteira(grafo g, lista vertices_x, unsigned int n_vertices_x);
   }
-  if (n_vertices_x == 1){
+
+  if(n_vertices_x == 1){
     destroi_lista(vertices_x);
     return NULL;
-  }
-  else{
-    if(componente_conexo = (struct grafo *) malloc(sizeof(struct grafo))) {
+  } else {
+    componente_conexo = (struct grafo *) malloc(sizeof(struct grafo));
+
+    if(componente_conexo != NULL) {
       /* Inicializa a estrutura de grafo para retornar o componente conexo*/
       componente_conexo->nome = (char *) NULL;
       componente_conexo->vertices = vertices_x;
@@ -499,7 +582,7 @@ lista busca_c_c(grafo g, vertice r){
 
 //------------------------------------------------------------------------------
 /* Retorna um vértice de fronteira do conjunto X */
-vertice * fronteira(grafo g, lista vertices_x, unsigned int n_vertices_x){
+vertice *fronteira(grafo g, lista vertices_x, unsigned int n_vertices_x){
   struct no *n;
   struct aresta *a;
   unsigned int i;
@@ -510,7 +593,7 @@ vertice * fronteira(grafo g, lista vertices_x, unsigned int n_vertices_x){
     for(n = primeiro_no(vertices_x[i].arestas); n != NULL; n = proximo_no(n)) {
       a = (struct aresta *) n->conteudo;
       /* Se não encontrar a->destino em X, então a->destino eh fronteira */
-      if (encontra_vertice_indice(vertices_x, n_vertices_x, g->vertices[a->destino].nome)==-1){
+      if (encontra_vertice_indice(vertices_x, n_vertices_x, g->vertices[a->destino].nome)==-1) {
         /* retorna a->destino */
         return g->vertices[a->destino];
       }
