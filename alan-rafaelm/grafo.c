@@ -321,58 +321,47 @@ grafo arvore_geradora_minima(grafo g) {
 
 //------------------------------------------------------------------------------
 lista componentes(grafo g) {
-  struct lista *lista_componentes, *lista_vertices;
+  struct lista *lista_componentes, *lista_v;
   struct grafo *componente_conexo;
-  struct no *n,*n2;
-  struct vertice *v;
-  unsigned int i, n_lista_vertices;
+  struct vertice *v_fora_vg;
+  unsigned int i, n_vertices_v;
 
   /* Inicializa a lista de componentes */
   inicializa_lista(lista_componentes);
   /* Inicializa o conjunto de vertices */
-  inicializa_lista(lista_vertices);
+  inicializa_lista(lista_v);
   /* Aloxa espaço para um componente conexo */
   componente_conexo = (struct grafo *) malloc(sizeof(struct grafo));
 
   /* Testa a alocação */
   if (componente_conexo){
-    n_lista_vertices = 0;
-    /*  Percorre todos os vértices do grafo ou até lista_vertices 
-        conter todos os vertices de G (n_lista_vertices = g->n_vertices) */
-    for(i = 0; i < g->n_vertices, n_lista_vertices == g->n_vertices ; ++i) {
-      /*  Percorre todos os vértices do grafo procurando um não contido 
-          em lista_vertices*/
-      for(n = g->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
-        // v = (struct vertice *) n->conteudo;
-        /* Caso v não esteja em lista_vertices */
-        if (busca(lista_vertices, n_lista_vertices, n->conteudo)==-1){
-          v = (struct vertice *) n->conteudo;
+    n_vertices_v = 0;
+    v_fora_vg = NULL;
+    /* Enquanto não tiver adicionar todos os V(G) à lista_v */
+    while (n_vertices_v < g->n_vertices){
+      /* Itera sobre todos os V(G) */
+      for(i = 0; i < g->n_vertices, v_fora_vg == NULL; ++i) {
+        /* Se não encontrar g->vertices[i].nome na lista_v, é um vértice V(G)-V */
+        if (encontra_vertice_indice(lista_v, n_vertices_v, g->vertices[i].nome) == -1){
+          v_fora_vg = g->vertices[i];
         }
       }
-      /* Obtem 1 componente conexo de G aqinda não processado */
-      componente_conexo = busca_c_c(g,v);
+      /* Obtem 1 componente conexo de G que ainda não foi processado */
+      componente_conexo = busca_c_c(g,v_fora_vg);
       /* Se encontrou algum componente conexo não processado */
-      if (componente_conexo != NULL){
-        /* Processa CC, adicionando à lista_componentes */
+      if (componente_conexo){
+        /* Insere na lista de componentes */
         insere_cabeca_conteudo(lista_componentes, componente_conexo);
-        /* Adiciona cada um de seus vertices à lista_vertices */
-        for (n2 = componente_conexo->primeiro; n2 != NULL; n2 = n2->proximo){
-          insere_cabeca_conteudo(lista_vertices, n2);
-          /* Incrementa o numero de vertices processados */
-          n_lista_vertices++;
+        /* Itera sobre cada vertice do componente conexo adicionando-o à lista_v */
+        for (i = 0; i < componente_conexo->n_vertices; i++){
+          insere_cabeca_conteudo(lista_v, componente_conexo->vertices[i]);
+          n_vertices_v++;
         }
-
       }
     }
+    destroi_grafo(componente_conexo);
+    destroi_lista(lista_v);
     return lista_componentes;
-    // C = V = NULL;
-    // while V != V(G){
-    //   V = um v de V(G) - V
-    //   X = busca_c_c(G,v)
-    //   C += G[X]
-    //   V += V(X)
-    // }
-    // return C;
   }
   return NULL;
 }
@@ -492,6 +481,7 @@ lista busca_c_c(grafo g, vertice r){
     v_fronteira = fronteira(grafo g, lista vertices_x, unsigned int n_vertices_x);
   }
   if (n_vertices_x == 1){
+    destroi_lista(vertices_x);
     return NULL;
   }
   else{
@@ -501,6 +491,7 @@ lista busca_c_c(grafo g, vertice r){
       componente_conexo->vertices = vertices_x;
       componente_conexo->direcionado = g->direcionado;
       componente_conexo->n_vertices = (int) n_vertices_x;
+      destroi_lista(vertices_x);
       return componente_conexo;
     }
   }
