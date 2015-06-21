@@ -333,13 +333,29 @@ lista blocos(grafo g) {
 }
 
 //------------------------------------------------------------------------------
-lista ordena(grafo g) {
-  struct lista *l, *s;
-  struct no *cauda, *n, *m;
-  struct vertice *v;
+void _ordena(grafo g, lista l, unsigned int v, unsigned char *v_processado, unsigned int *v_pai) {
+  struct no *n;
   struct aresta *a;
-  int adiciona;
-  unsigned int i, j, n_arestas, tamanho_s = 0;
+
+  v_processado[v] = 1;
+  for(n = g->vertices[v].vertice_lista->primeiro; n != NULL; n = n->proximo) {
+    a = (struct aresta *) n->conteudo;
+
+    if(a->destino != v) {
+      v_pai[a->destino] = v;
+      _ordena(g, l, a->destino, v_processado, v_pai);
+    }
+  }
+
+  insere_cabeca_conteudo(l, g->vertices + v);
+}
+
+//------------------------------------------------------------------------------
+lista ordena(grafo g) {
+  struct lista *l;
+  unsigned char *v_processado;
+  unsigned int *v_pai;
+  unsigned int i;
 
   if(!g->direcionado) {
     return NULL;
@@ -348,59 +364,24 @@ lista ordena(grafo g) {
   l = (struct lista *) malloc(sizeof(struct lista));
 
   if(l != NULL) {
-    s = (struct lista *) malloc(sizeof(struct lista));
+    v_processado = (unsigned char *) malloc(sizeof(unsigned char) * g->n_vertices);
+    v_pai = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
 
-    if(s != NULL) {
+    if(v_processado != NULL && v_pai != NULL) {
       for(i = 0; i < g->n_vertices; ++i) {
-        adiciona = 1;
+        v_processado[i] = 0;
+        v_pai[i] = (unsigned int) -1;
+      }
 
-        for(n = g->vertices[i].vertice_lista->primeiro; n != NULL; n = n->proximo) {
-          a = (struct aresta *) n->conteudo;
-          if(a->destino == i) {
-            adiciona = 0;
-          }
-
-          ++n_arestas;
-        }
-
-        if(adiciona) {
-          insere_cabeca_conteudo(s, g->vertices + i);
-          ++tamanho_s;
+      for(i = 0; i < g->n_vertices; ++i) {
+        if(!v_processado[i]) {
+          v_pai[i] = i;
+          _ordena(g, l, i, v_processado, v_pai);
         }
       }
 
-      while(tamanho_s > 0) {
-        n = s->primeiro;
-        s->primeiro = s->primeiro->proximo;
-
-        cauda->proximo = n;
-        cauda = n;
-
-        v = (struct vertice *) n->conteudo;
-        for(m = v->vertice_lista->primeiro; m != NULL; m = m->proximo) {
-          a = (struct aresta *) m->conteudo;
-          j = a->destino;
-          //remove aresta a
-
-          adiciona = 1;
-
-          for(n = g->vertices[j].vertice_lista->primeiro; n != NULL; n = n->proximo) {
-            a = (struct aresta *) n->conteudo;
-            if(a->destino == j) {
-              adiciona = 0;
-            }
-          }
-
-          if(adiciona) {
-            insere_cabeca_conteudo(s, g->vertices + j);
-            ++tamanho_s;
-          }
-        }
-
-        --tamanho_s;
-      }
-
-      free(s);
+      free(v_processado);
+      free(v_pai);
     }
   }
 
