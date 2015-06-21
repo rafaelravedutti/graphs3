@@ -324,16 +324,29 @@ lista componentes(grafo g) {
   struct lista *lista_componentes, *lista_vertices;
   struct grafo *grafo_aux;
   struct no *n;
-  struct aresta *a;
+  struct vertice *v;
   unsigned int i;
 
+  // C = V = NULL;
   /* Inicializa a lista de componentes */
   inicializa_lista(lista_componentes);
   /* Inicializa o conjunto de vertices */
   inicializa_lista(lista_vertices);
+  for(i = 0; i < g->n_vertices; ++i) {
+    for(n = g->vertices[i].vertice_lista->primeiro; n != NULL; n = n->proximo) {
+      v = (struct vertice *) n->conteudo;
+      if(a->destino == i) {
+        adiciona = 0;
+      }
 
-  componentes = (struct grafo *) malloc(sizeof(struct grafo));
-  C = V = NULL;
+      ++n_arestas;
+    }
+
+    if(adiciona) {
+      insere_cabeca_conteudo(s, g->vertices + i);
+      ++tamanho_s;
+    }
+  }
   while V != V(G){
     V = um v de V(G) - V
     X = busca_c_c(G,v)
