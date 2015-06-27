@@ -679,7 +679,26 @@ int fortemente_conexo(grafo g) {
 
 //------------------------------------------------------------------------------
 long int diametro(grafo g) {
-  return 0;
+  struct grafo *dis;
+  struct no *n;
+  struct aresta *a;
+  long int diametro = 0;
+  unsigned int i;
+
+  dis = distancias(g);
+
+  for(i = 0; i < dis->n_vertices; ++i) {
+    for(n = dis->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
+      a = (struct aresta *) n->conteudo;
+
+      if(diametro < a->peso) {
+        diametro = a->peso;
+      }
+    }
+  }
+
+  destroi_grafo(dis);
+  return diametro;
 }
 
 //------------------------------------------------------------------------------
