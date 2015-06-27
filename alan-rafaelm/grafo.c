@@ -5,6 +5,7 @@
 
 struct lista {
   struct no *primeiro;
+  unsigned int ref_count;
 };
 
 struct no {
@@ -20,6 +21,7 @@ struct vertice {
 struct aresta {
   unsigned int origem;
   unsigned int destino;
+  long int peso;
 };
 
 struct grafo {
@@ -29,6 +31,16 @@ struct grafo {
   unsigned int n_vertices;
   vertice vertices;
 };
+
+//------------------------------------------------------------------------------
+void inicializa_lista(lista *l) {
+  /* Aloca espaço pra lista */
+  *l = (struct lista *) malloc(sizeof(struct lista));
+  /* Inicia lista vazia */
+  if(*l != NULL) {
+    (*l)->primeiro = NULL;
+  }
+}
 
 //------------------------------------------------------------------------------
 void insere_cabeca(lista l, no n) {
@@ -46,6 +58,19 @@ void insere_cabeca_conteudo(lista l, void *conteudo) {
     n->conteudo = conteudo;
     insere_cabeca(l, n);
   }
+}
+
+//------------------------------------------------------------------------------
+int lista_contem(lista l, void *conteudo) {
+  struct no *n;
+
+  for(n = l->primeiro; n != NULL; n = n->proximo) {
+    if(n->conteudo == conteudo) {
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -74,11 +99,21 @@ int _destroi(void *p) {
 }
 
 //------------------------------------------------------------------------------
+int _mantem(void *p) {
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 int destroi_lista(lista l, int destroi(void *)) {
   struct no *n, *prox;
 
   if(l == NULL) {
     return 0;
+  }
+
+  if(l->ref_count > 1) {
+    --l->ref_count;
+    return 1;
   }
 
   for(n = l->primeiro; n != NULL; n = prox) {
@@ -158,6 +193,7 @@ grafo le_grafo(FILE *input) {
 
         if(grafo_lido->vertices[i].arestas != NULL) {
           grafo_lido->vertices[i].arestas->primeiro = NULL;
+          grafo_lido->vertices[i].arestas->ref_count = 1;
         }
       }
 
@@ -306,7 +342,7 @@ int conexo(grafo g) {
     retorno = 1;
   }
 
-  destroi_lista(comp, _destroi);
+  destroi_lista(comp, destroi_grafo);
   return retorno;
 }
 
@@ -320,50 +356,111 @@ grafo arvore_geradora_minima(grafo g) {
 }
 
 //------------------------------------------------------------------------------
+void _gera_componente(grafo g, lista vertices_componente, unsigned int *n_vertices_componente, unsigned int r) {
+  struct no *n;
+  struct aresta *a;
+
+  if(!lista_contem(vertices_componente, g->vertices + r)) {
+    insere_cabeca_conteudo(vertices_componente, g->vertices + r);
+
+    for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
+      a = (struct aresta *) n->conteudo;
+      _gera_componente(g, vertices_componente, n_vertices_componente, a->destino);
+    }
+
+    ++(*n_vertices_componente);
+  }
+}
+
+//------------------------------------------------------------------------------
+grafo gera_componente(grafo g, unsigned int r) {
+  struct grafo *componente;
+  struct lista *vertices_componente;
+  struct vertice *v;
+  struct aresta *a;
+  struct no *n;
+  unsigned int n_vertices_componente = 1, count = 0;
+
+  inicializa_lista(&vertices_componente);
+  insere_cabeca_conteudo(vertices_componente, g->vertices + r);
+
+  /* Realiza uma busca adicionando todos os vértices do componente na lista */
+  for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
+    a = (struct aresta *) n->conteudo;
+    _gera_componente(g, vertices_componente, &n_vertices_componente, a->destino);
+  }
+
+  componente = (struct grafo *) malloc(sizeof(struct grafo));
+
+  if(componente != NULL) {
+    /* Inicializa a estrutura de grafo para retornar o componente conexo*/
+    componente->nome = (char *) NULL;
+    componente->direcionado = g->direcionado;
+    componente->ponderado = g->ponderado;
+    componente->n_vertices = n_vertices_componente;
+
+    componente->vertices = (struct vertice *) malloc(sizeof(struct vertice) * n_vertices_componente);
+
+    if(componente->vertices != NULL) {
+      for(n = vertices_componente->primeiro; n != NULL; n = n->proximo) {
+        v = (struct vertice *) n->conteudo;
+
+        componente->vertices[count].nome = strdup(v->nome);
+        componente->vertices[count].arestas = v->arestas;
+
+        ++(v->arestas->ref_count);
+        ++count;
+      }
+    }
+  }
+
+  destroi_lista(vertices_componente, _mantem);
+  return componente;
+}
+
+//------------------------------------------------------------------------------
 lista componentes(grafo g) {
-  struct lista *lista_componentes, *lista_v;
-  struct grafo *componente_conexo;
-  struct vertice *v_fora_vg;
-  unsigned int i, n_vertices_v;
+  struct lista *lista_componentes;
+  struct grafo *componente;
+  unsigned int i, v, vertices_processados;
+  unsigned int *vertice_processado;
 
   /* Inicializa a lista de componentes */
-  inicializa_lista(lista_componentes);
-  /* Inicializa o conjunto de vertices */
-  inicializa_lista(lista_v);
-  /* Aloxa espaço para um componente conexo */
-  componente_conexo = (struct grafo *) malloc(sizeof(struct grafo));
+  inicializa_lista(&lista_componentes);
 
-  /* Testa a alocação */
-  if (componente_conexo){
-    n_vertices_v = 0;
-    v_fora_vg = NULL;
-    /* Enquanto não tiver adicionar todos os V(G) à lista_v */
-    while (n_vertices_v < g->n_vertices){
-      /* Itera sobre todos os V(G) */
-      for(i = 0; i < g->n_vertices, v_fora_vg == NULL; ++i) {
-        /* Se não encontrar g->vertices[i].nome na lista_v, é um vértice V(G)-V */
-        if (encontra_vertice_indice(lista_v, n_vertices_v, g->vertices[i].nome) == -1){
-          v_fora_vg = g->vertices[i];
-        }
-      }
-      /* Obtem 1 componente conexo de G que ainda não foi processado */
-      componente_conexo = busca_c_c(g,v_fora_vg);
-      /* Se encontrou algum componente conexo não processado */
-      if (componente_conexo){
-        /* Insere na lista de componentes */
-        insere_cabeca_conteudo(lista_componentes, componente_conexo);
-        /* Itera sobre cada vertice do componente conexo adicionando-o à lista_v */
-        for (i = 0; i < componente_conexo->n_vertices; i++){
-          insere_cabeca_conteudo(lista_v, componente_conexo->vertices[i]);
-          n_vertices_v++;
+  vertice_processado = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
+
+  if(vertice_processado != NULL) {
+    for(i = 0; i < g->n_vertices; ++i) {
+      vertice_processado[i] = 0;
+    }
+
+    vertices_processados = 0;
+
+    /* Enquanto não forem processados todos os vértices de G */
+    while(vertices_processados < g->n_vertices) {
+      /* Procura um vértice em G ainda não processado */
+      for(v = 0; v < g->n_vertices && vertice_processado[v] == 1; ++v);
+
+      /* Gera o componente a qual pertence o vértice encontrado */
+      componente = gera_componente(g, v);
+
+      if(componente != NULL) {
+        /* Insere o componente na lista */
+        insere_cabeca_conteudo(lista_componentes, componente);
+
+        /* Marca como processados todos os vértices do componente */
+        for(i = 0; i < componente->n_vertices; ++i) {
+          vertice_processado[encontra_vertice_indice(g->vertices, g->n_vertices, componente->vertices[i].nome)] = 1;
+          ++vertices_processados;
         }
       }
     }
-    destroi_grafo(componente_conexo);
-    destroi_lista(lista_v);
-    return lista_componentes;
+
+    free(vertice_processado);
   }
-  return NULL;
+
+  return lista_componentes;
 }
 
 //------------------------------------------------------------------------------
@@ -437,8 +534,63 @@ grafo arborescencia_caminhos_minimos(grafo g, vertice r) {
 }
 
 //------------------------------------------------------------------------------
+void computa_distancia(struct grafo *dis, struct grafo *acm, unsigned int v, struct no *n, unsigned int d) {
+  struct no *no_distancia, *p;
+  struct aresta *a, *aresta_distancia;
+
+  no_distancia = (struct no *) malloc(sizeof(struct no));
+
+  if(no_distancia != NULL) {
+    a = (struct aresta *) n->conteudo;
+    aresta_distancia = (struct aresta *) no_distancia->conteudo;
+
+    aresta_distancia->origem = v;
+    aresta_distancia->destino = a->destino;
+    aresta_distancia->peso = d;
+
+    no_distancia->proximo = dis->vertices[v].arestas->primeiro;
+    dis->vertices[v].arestas->primeiro = no_distancia;
+
+    for(p = acm->vertices[a->destino].arestas->primeiro; p != NULL; p = p->proximo) {
+      computa_distancia(dis, acm, v, p, d + 1);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 grafo distancias(grafo g) {
-  return NULL;
+  struct grafo *dis, *acm;
+  struct no *n;
+  unsigned int i;
+
+  dis = (struct grafo *) malloc(sizeof(struct grafo));
+
+  if(dis != NULL) {
+    dis->vertices = (struct vertice *) malloc(sizeof(struct vertice) * g->n_vertices);
+
+    if(dis->vertices != NULL) {
+      for(i = 0; i < g->n_vertices; ++i) {
+        dis->vertices[i].arestas = (struct lista *) malloc(sizeof(struct lista));
+        dis->vertices[i].nome = strdup(g->vertices[i].nome);
+      }
+
+      dis->n_vertices = g->n_vertices;
+      dis->direcionado = 0;
+      dis->ponderado = 1;
+
+      for(i = 0; i < g->n_vertices; ++i) {
+        acm = arborescencia_caminhos_minimos(g, g->vertices + i);
+
+        for(n = acm->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
+          computa_distancia(dis, acm, i, n, 1);
+        }
+
+        destroi_grafo(acm);
+      }
+    }
+  }
+
+  return dis;
 }
 
 //------------------------------------------------------------------------------
@@ -501,7 +653,7 @@ void _fortemente_conexo(grafo g, unsigned int i, unsigned int *t, unsigned int *
 
 //------------------------------------------------------------------------------
 int fortemente_conexo(grafo g) {
-  unsigned int *v_pai, *pre, *pos;
+  unsigned int *pre, *pos;
   unsigned int i, t = 0, n_comp = 0;
 
   busca_profundidade(g, &pre, &pos);
@@ -509,7 +661,6 @@ int fortemente_conexo(grafo g) {
   if(pre != NULL && pos != NULL) {
     for(i = 0; i < g->n_vertices; ++i) {
       pre[pos[i]] = 0;
-      v_pai[pos[i]] = (unsigned int) -1;
     }
 
     for(i = g->n_vertices; i > 0; --i) {
@@ -529,77 +680,6 @@ int fortemente_conexo(grafo g) {
 //------------------------------------------------------------------------------
 long int diametro(grafo g) {
   return 0;
-}
-
-//----------------------------Funções extras auxiliares-------------------------
-void inicializa_lista(lista *l) {
-  /* Aloca espaço pra lista */
-  l = (struct lista *) malloc(sizeof(struct lista));
-  /* Inicia lista vazia */
-  if(l != NULL) {
-    l->primeiro = NULL;
-  }
-}
-
-//------------------------------------------------------------------------------
-lista busca_c_c(grafo g, vertice r){
-  struct lista *vertices_x;
-  struct grafo *componente_conexo;
-  struct no *n,*v_fronteira;
-  struct vertice *v;
-  unsigned int n_vertices_x;
-
-  inicializa_lista(vertices_x);
-  insere_cabeca_conteudo(vertices_x, r);
-  n_vertices_x = 1;
-  /* Obtem 1 vertice da fronteira de X se existir, se não NULL */
-  v_fronteira = fronteira(grafo g, lista vertices_x, unsigned int n_vertices_x);
-
-  while(v_fronteira) {
-    /* Adiciona o vertice de  */
-    insere_cabeca_conteudo(vertices_x, v_fronteira);
-    n_vertices_x++;
-    v_fronteira = fronteira(grafo g, lista vertices_x, unsigned int n_vertices_x);
-  }
-
-  if(n_vertices_x == 1){
-    destroi_lista(vertices_x);
-    return NULL;
-  } else {
-    componente_conexo = (struct grafo *) malloc(sizeof(struct grafo));
-
-    if(componente_conexo != NULL) {
-      /* Inicializa a estrutura de grafo para retornar o componente conexo*/
-      componente_conexo->nome = (char *) NULL;
-      componente_conexo->vertices = vertices_x;
-      componente_conexo->direcionado = g->direcionado;
-      componente_conexo->n_vertices = (int) n_vertices_x;
-      destroi_lista(vertices_x);
-      return componente_conexo;
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-/* Retorna um vértice de fronteira do conjunto X */
-vertice *fronteira(grafo g, lista vertices_x, unsigned int n_vertices_x){
-  struct no *n;
-  struct aresta *a;
-  unsigned int i;
-
-  /* Percorre todos os vértices em X */
-  for(i = 0; i < n_vertices_x; ++i) {
-    /* Para cada vértice em X, percorre as arestas */
-    for(n = primeiro_no(vertices_x[i].arestas); n != NULL; n = proximo_no(n)) {
-      a = (struct aresta *) n->conteudo;
-      /* Se não encontrar a->destino em X, então a->destino eh fronteira */
-      if (encontra_vertice_indice(vertices_x, n_vertices_x, g->vertices[a->destino].nome)==-1) {
-        /* retorna a->destino */
-        return g->vertices[a->destino];
-      }
-    }
-  }
-  return NULL;
 }
 
 //------------------------------------------------------------------------------
