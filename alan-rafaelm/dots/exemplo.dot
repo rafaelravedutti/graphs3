@@ -1,0 +1,7 @@
+strict digraph exemplo {
+  "A" -> "B"
+  "B" -> "C"
+  "C" -> "D"
+  "D" -> "F"
+  "F" -> "A"
+}
