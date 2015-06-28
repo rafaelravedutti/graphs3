@@ -410,8 +410,8 @@ grafo gera_componente(grafo g, unsigned int r) {
   struct grafo *componente;
   struct lista *vertices_componente;
   struct vertice *v;
-  struct aresta *a;
-  struct no *n;
+  struct aresta *a, *aresta_componente;
+  struct no *n, *no_arestas;
   unsigned int n_vertices_componente = 1, count = 0;
 
   inicializa_lista(&vertices_componente);
@@ -435,14 +435,28 @@ grafo gera_componente(grafo g, unsigned int r) {
     componente->vertices = (struct vertice *) malloc(sizeof(struct vertice) * n_vertices_componente);
 
     if(componente->vertices != NULL) {
-      for(n = vertices_componente->primeiro; n != NULL; n = n->proximo) {
+      for(n = vertices_componente->primeiro, count = 0; n != NULL; n = n->proximo, ++count) {
         v = (struct vertice *) n->conteudo;
 
         componente->vertices[count].nome = strdup(v->nome);
-        componente->vertices[count].arestas = v->arestas;
+        componente->vertices[count].arestas = (struct lista *) malloc(sizeof(struct lista));
+        componente->vertices[count].arestas->primeiro = NULL;
+      }
 
-        ++(v->arestas->ref_count);
-        ++count;
+      for(n = vertices_componente->primeiro, count = 0; n != NULL; n = n->proximo, ++count) {
+        v = (struct vertice *) n->conteudo;
+
+        for(no_arestas = v->arestas->primeiro; no_arestas != NULL; no_arestas = no_arestas->proximo) {
+          a = (struct aresta *) no_arestas->conteudo;
+          aresta_componente = (struct aresta *) malloc(sizeof(struct aresta));
+
+          if(aresta_componente != NULL) {
+            aresta_componente->origem = count;
+            aresta_componente->destino = encontra_vertice_indice(componente->vertices, componente->n_vertices, g->vertices[a->destino].nome);
+            insere_cabeca_conteudo(componente->vertices[count].arestas, aresta_componente);
+          }
+
+        }
       }
     }
   }
@@ -839,7 +853,7 @@ long int diametro(grafo g) {
 
 //------------------------------------------------------------------------------
 int main(void) {
-  struct grafo *g, *d;
+  struct grafo *g, *d, *c;
   struct vertice *v;
   struct no *n;
   lista l;
@@ -854,6 +868,15 @@ int main(void) {
     }
 
     destroi_lista(l, _destroi);
+  }
+
+  if((l = componentes(g)) != NULL) {
+    for(n = l->primeiro; n != NULL; n = n->proximo) {
+      c = (struct grafo *) n->conteudo;
+      escreve_grafo(stdout, c);
+    }
+
+    destroi_lista(l, destroi_grafo);
   }
 
   d = arborescencia_caminhos_minimos(g, g->vertices);
