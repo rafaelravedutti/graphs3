@@ -28,8 +28,9 @@ struct grafo {
   char *nome;
   int direcionado;
   int ponderado;
-  unsigned int n_vertices;
   vertice vertices;
+  unsigned int n_vertices;
+  unsigned int ref_count;
 };
 
 //------------------------------------------------------------------------------
@@ -181,6 +182,9 @@ grafo le_grafo(FILE *input) {
     /* Aloca a quantidade de memória necessária para armazenar todos os vértices */
     grafo_lido->vertices = (struct vertice *) malloc(sizeof(struct vertice) * grafo_lido->n_vertices);
 
+    /* Contador de ponteiros que referênciam a região */
+    grafo_lido->ref_count = 1;
+
     if(grafo_lido->vertices != NULL) {
       /* Percorre todos os vértices do grafo */
       for(i = 0, v = agfstnode(g); i < grafo_lido->n_vertices; ++i, v = agnxtnode(g, v)) {
@@ -243,30 +247,34 @@ int destroi_grafo(void *g) {
   g_ptr = (grafo) g;
 
   if(g_ptr != NULL) {
-    /* Libera a região de memória ocupada pelo nome do grafo, se não for nula */
-    if(g_ptr->nome != NULL) {
-      free(g_ptr->nome);
-    }
-
-    /* Libera a região de memória ocupada pelos vértices do grafo, se não for nula */
-    if(g_ptr->vertices != NULL) {
-      unsigned int i;
-
-      for(i = 0; i < g_ptr->n_vertices; ++i) {
-        if(g_ptr->vertices[i].nome != NULL) {
-          free(g_ptr->vertices[i].nome);
-        }
-
-        if(g_ptr->vertices[i].arestas != NULL) {
-          destroi_lista(g_ptr->vertices[i].arestas, _destroi);
-        }
+    if(g_ptr->ref_count > 1) {
+      --g_ptr->ref_count;
+    } else {
+      /* Libera a região de memória ocupada pelo nome do grafo, se não for nula */
+      if(g_ptr->nome != NULL) {
+        free(g_ptr->nome);
       }
 
-      free(g_ptr->vertices);
-    }
+      /* Libera a região de memória ocupada pelos vértices do grafo, se não for nula */
+      if(g_ptr->vertices != NULL) {
+        unsigned int i;
 
-    /* Libera a região de memória ocupada pela estrutura do grafo */
-    free(g_ptr);
+        for(i = 0; i < g_ptr->n_vertices; ++i) {
+          if(g_ptr->vertices[i].nome != NULL) {
+            free(g_ptr->vertices[i].nome);
+          }
+
+          if(g_ptr->vertices[i].arestas != NULL) {
+            destroi_lista(g_ptr->vertices[i].arestas, _destroi);
+          }
+        }
+
+        free(g_ptr->vertices);
+      }
+
+      /* Libera a região de memória ocupada pela estrutura do grafo */
+      free(g_ptr);
+    }
   }
 
   return 1;
@@ -530,7 +538,74 @@ lista ordena(grafo g) {
 
 //------------------------------------------------------------------------------
 grafo arborescencia_caminhos_minimos(grafo g, vertice r) {
-  return NULL;
+  struct grafo *t;
+  struct aresta *a, *aresta_selecionada;
+  struct no *n;
+  unsigned int i, v, menor_distancia;
+  unsigned int *vertice_processado, *distancias;
+
+  if((v = encontra_vertice_indice(g->vertices, g->n_vertices, r->nome)) == -1) {
+    return NULL;
+  }
+
+  t = (struct grafo *) malloc(sizeof(struct grafo));
+
+  if(t != NULL) {
+    t->vertices = (struct vertice *) malloc(sizeof(struct vertice) * g->n_vertices);
+    vertice_processado = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
+    distancias = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
+
+    if(t->vertices != NULL && vertice_processado != NULL) {
+      for(i = 0; i < g->n_vertices; ++i) {
+        t->vertices[i].nome = strdup(g->vertices[i].nome);
+        t->vertices[i].arestas = (struct lista *) malloc(sizeof(struct lista));
+        t->vertices[i].arestas->primeiro = NULL;
+      }
+
+      vertice_processado[v] = 1;
+      distancias[v] = 0;
+
+      do {
+        aresta_selecionada = NULL;
+        menor_distancia = infinito;
+
+        for(i = 0; i < g->n_vertices; ++i) {
+          if(vertice_processado[i] == 1) {
+            for(n = g->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
+              a = (struct aresta *) n->conteudo;
+
+              if(vertice_processado[a->destino] == 0) {
+                if(menor_distancia > distancias[i] + a->peso) {
+                  menor_distancia = distancias[i] + a->peso;
+                  aresta_selecionada = a;
+                }
+              }
+            }
+          }
+        }
+
+        if(aresta_selecionada != NULL) {
+          vertice_processado[aresta_selecionada->destino] = 1;
+          distancias[aresta_selecionada->destino] = menor_distancia;
+
+          a = (struct aresta *) malloc(sizeof(struct aresta));
+
+          if(a != NULL) {
+            a->origem = aresta_selecionada->origem;
+            a->destino = aresta_selecionada->destino;
+            a->peso = aresta_selecionada->peso;
+
+            insere_cabeca_conteudo(t->vertices[aresta_selecionada->origem].arestas, a);
+          }
+        }
+      } while(aresta_selecionada != NULL);
+
+      free(distancias);
+      free(vertice_processado);
+    }
+  }
+
+  return t;
 }
 
 //------------------------------------------------------------------------------
