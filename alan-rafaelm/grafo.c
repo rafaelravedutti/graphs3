@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <limits.h>
 #include <graphviz/cgraph.h>
 #include "string.h"
 #include "grafo.h"
@@ -32,6 +33,8 @@ struct grafo {
   unsigned int n_vertices;
   unsigned int ref_count;
 };
+
+const long int infinito = LONG_MAX;
 
 //------------------------------------------------------------------------------
 void inicializa_lista(lista *l) {
@@ -566,7 +569,8 @@ grafo arborescencia_caminhos_minimos(grafo g, vertice r) {
   struct grafo *t;
   struct aresta *a, *aresta_selecionada;
   struct no *n;
-  unsigned int i, v, menor_distancia;
+  long int menor_distancia;
+  unsigned int i, v;
   unsigned int *vertice_processado, *distancias;
 
   if((v = encontra_vertice_indice(g->vertices, g->n_vertices, r->nome)) == -1) {
@@ -581,10 +585,17 @@ grafo arborescencia_caminhos_minimos(grafo g, vertice r) {
     distancias = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
 
     if(t->vertices != NULL && vertice_processado != NULL && distancias != NULL) {
+      t->nome = NULL;
+      t->n_vertices = g->n_vertices;
+      t->ponderado = g->ponderado;
+      t->direcionado = 1;
+
       for(i = 0; i < g->n_vertices; ++i) {
         t->vertices[i].nome = strdup(g->vertices[i].nome);
         t->vertices[i].arestas = (struct lista *) malloc(sizeof(struct lista));
         t->vertices[i].arestas->primeiro = NULL;
+
+        vertice_processado[i] = 0;
       }
 
       vertice_processado[v] = 1;
@@ -635,24 +646,22 @@ grafo arborescencia_caminhos_minimos(grafo g, vertice r) {
 
 //------------------------------------------------------------------------------
 void computa_distancia(struct grafo *dis, struct grafo *acm, unsigned int v, struct no *n, long int d) {
-  struct no *no_distancia, *p;
+  struct no *p;
   struct aresta *a, *aresta_p, *aresta_distancia;
 
-  no_distancia = (struct no *) malloc(sizeof(struct no));
+  aresta_distancia = (struct aresta *) malloc(sizeof(struct aresta));
 
-  if(no_distancia != NULL) {
+  if(aresta_distancia != NULL) {
     a = (struct aresta *) n->conteudo;
-    aresta_distancia = (struct aresta *) no_distancia->conteudo;
 
     aresta_distancia->origem = v;
     aresta_distancia->destino = a->destino;
     aresta_distancia->peso = d;
 
-    no_distancia->proximo = dis->vertices[v].arestas->primeiro;
-    dis->vertices[v].arestas->primeiro = no_distancia;
+    insere_cabeca_conteudo(dis->vertices[v].arestas, aresta_distancia);
 
     for(p = acm->vertices[a->destino].arestas->primeiro; p != NULL; p = p->proximo) {
-      aresta_p = (struct aresta *) p;
+      aresta_p = (struct aresta *) p->conteudo;
       computa_distancia(dis, acm, v, p, d + aresta_p->peso);
     }
   }
@@ -673,9 +682,11 @@ grafo distancias(grafo g) {
     if(dis->vertices != NULL) {
       for(i = 0; i < g->n_vertices; ++i) {
         dis->vertices[i].arestas = (struct lista *) malloc(sizeof(struct lista));
+        dis->vertices[i].arestas->primeiro = NULL;
         dis->vertices[i].nome = strdup(g->vertices[i].nome);
       }
 
+      dis->nome = NULL;
       dis->n_vertices = g->n_vertices;
       dis->direcionado = 0;
       dis->ponderado = 1;
@@ -828,7 +839,7 @@ long int diametro(grafo g) {
 
 //------------------------------------------------------------------------------
 int main(void) {
-  struct grafo *g;
+  struct grafo *g, *d;
   struct vertice *v;
   struct no *n;
   lista l;
@@ -843,6 +854,18 @@ int main(void) {
     }
 
     destroi_lista(l, _destroi);
+  }
+
+  d = arborescencia_caminhos_minimos(g, g->vertices);
+  if(d != NULL) {
+    escreve_grafo(stdout, d);
+    destroi_grafo(d);
+  }
+
+  d = distancias(g);
+  if(d != NULL) {
+    escreve_grafo(stdout, d);
+    destroi_grafo(d);
   }
 
   if(fortemente_conexo(g)) {
