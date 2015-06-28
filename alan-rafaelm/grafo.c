@@ -381,11 +381,85 @@ int conexo(grafo g) {
 
 //------------------------------------------------------------------------------
 grafo arvore_geradora_minima(grafo g) {
+  struct grafo *t;
+  struct aresta *a, *aresta_selecionada;
+  struct no *n;
+  long int menor_peso;
+  unsigned int i, vertices_processados;
+  unsigned int *vertice_processado;
+
   if(g->direcionado) {
     return NULL;
   }
 
-  return g;
+  t = (struct grafo *) malloc(sizeof(struct grafo));
+
+  if(t != NULL) {
+    t->vertices = (struct vertice *) malloc(sizeof(struct vertice) * g->n_vertices);
+    vertice_processado = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
+
+    if(t->vertices != NULL && vertice_processado != NULL) {
+      t->nome = NULL;
+      t->n_vertices = g->n_vertices;
+      t->ponderado = g->ponderado;
+      t->direcionado = 0;
+
+      for(i = 0; i < g->n_vertices; ++i) {
+        t->vertices[i].nome = strdup(g->vertices[i].nome);
+        t->vertices[i].arestas = (struct lista *) malloc(sizeof(struct lista));
+        t->vertices[i].arestas->primeiro = NULL;
+
+        vertice_processado[i] = 0;
+      }
+
+      vertice_processado[0] = 1;
+      vertices_processados = 1;
+
+      do {
+        aresta_selecionada = NULL;
+        menor_peso = infinito;
+
+        for(i = 0; i < g->n_vertices; ++i) {
+          if(vertice_processado[i] == 1) {
+            for(n = g->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
+              a = (struct aresta *) n->conteudo;
+
+              if(vertice_processado[a->destino] == 0) {
+                if(menor_peso > a->peso) {
+                  menor_peso = a->peso;
+                  aresta_selecionada = a;
+                }
+              }
+            }
+          }
+        }
+
+        if(aresta_selecionada != NULL) {
+          vertice_processado[aresta_selecionada->destino] = 1;
+          ++vertices_processados;
+
+          a = (struct aresta *) malloc(sizeof(struct aresta));
+
+          if(a != NULL) {
+            a->origem = aresta_selecionada->origem;
+            a->destino = aresta_selecionada->destino;
+            a->peso = aresta_selecionada->peso;
+
+            insere_cabeca_conteudo(t->vertices[aresta_selecionada->origem].arestas, a);
+          }
+        }
+      } while(aresta_selecionada != NULL);
+
+      free(vertice_processado);
+    }
+
+    if(vertices_processados != g->n_vertices) {
+      destroi_grafo(t);
+      return NULL;
+    }
+  }
+
+  return t;
 }
 
 //------------------------------------------------------------------------------
@@ -900,6 +974,12 @@ int main(void) {
     }
 
     destroi_lista(l, destroi_grafo);
+  }
+
+  d = arvore_geradora_minima(g);
+  if(d != NULL) {
+    escreve_grafo(stdout, d);
+    destroi_grafo(d);
   }
 
   d = arborescencia_caminhos_minimos(g, g->vertices);
