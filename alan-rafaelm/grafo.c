@@ -455,7 +455,6 @@ grafo gera_componente(grafo g, unsigned int r) {
             aresta_componente->destino = encontra_vertice_indice(componente->vertices, componente->n_vertices, g->vertices[a->destino].nome);
             insere_cabeca_conteudo(componente->vertices[count].arestas, aresta_componente);
           }
-
         }
       }
     }
@@ -659,7 +658,7 @@ grafo arborescencia_caminhos_minimos(grafo g, vertice r) {
 }
 
 //------------------------------------------------------------------------------
-void computa_distancia(struct grafo *dis, struct grafo *acm, unsigned int v, struct no *n, long int d) {
+void computa_distancia(struct grafo *dis, struct grafo *acm, unsigned int v, struct no *n, long int d, unsigned int *v_processado) {
   struct no *p;
   struct aresta *a, *aresta_p, *aresta_distancia;
 
@@ -676,8 +675,10 @@ void computa_distancia(struct grafo *dis, struct grafo *acm, unsigned int v, str
 
     for(p = acm->vertices[a->destino].arestas->primeiro; p != NULL; p = p->proximo) {
       aresta_p = (struct aresta *) p->conteudo;
-      computa_distancia(dis, acm, v, p, d + aresta_p->peso);
+      computa_distancia(dis, acm, v, p, d + aresta_p->peso, v_processado);
     }
+
+    v_processado[a->destino] = 1;
   }
 }
 
@@ -686,12 +687,14 @@ grafo distancias(grafo g) {
   struct grafo *dis, *acm;
   struct no *n;
   struct aresta *a;
-  unsigned int i;
+  unsigned int *v_processado;
+  unsigned int i, j;
 
   dis = (struct grafo *) malloc(sizeof(struct grafo));
 
   if(dis != NULL) {
     dis->vertices = (struct vertice *) malloc(sizeof(struct vertice) * g->n_vertices);
+    v_processado = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
 
     if(dis->vertices != NULL) {
       for(i = 0; i < g->n_vertices; ++i) {
@@ -708,9 +711,29 @@ grafo distancias(grafo g) {
       for(i = 0; i < g->n_vertices; ++i) {
         acm = arborescencia_caminhos_minimos(g, g->vertices + i);
 
+        for(j = 0; j < g->n_vertices; ++j) {
+          v_processado[j] = 0;
+        }
+
+        v_processado[i] = 1;
+
         for(n = acm->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
           a = (struct aresta *) n->conteudo;
-          computa_distancia(dis, acm, i, n, a->peso);
+          computa_distancia(dis, acm, i, n, a->peso, v_processado);
+        }
+
+        for(j = 0; j < g->n_vertices; ++j) {
+          if(v_processado[j] == 0) {
+            a = (struct aresta *) malloc(sizeof(struct aresta));
+
+            if(a != NULL) {
+              a->origem = i;
+              a->destino = j;
+              a->peso = infinito;
+
+              insere_cabeca_conteudo(dis->vertices[i].arestas, a);
+            }
+          }
         }
 
         destroi_grafo(acm);
