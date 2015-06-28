@@ -672,58 +672,44 @@ grafo distancias(grafo g) {
 }
 
 //------------------------------------------------------------------------------
-void _busca_profundidade(grafo g, unsigned int v, unsigned int *t, unsigned int *pre, unsigned int *pos) {
+void _busca_profundidade(grafo g, unsigned int v, unsigned int *t_pre, unsigned int *t_pos, unsigned int *pre, unsigned int *pos) {
   struct no *n;
   struct aresta *a;
 
-  pre[v] = ++(*t);
+  if(t_pre != NULL && pre != NULL) {
+    pre[v] = ++(*t_pre);
+  }
 
   for(n = g->vertices[v].arestas->primeiro; n != NULL; n = n->proximo) {
     a = (struct aresta *) n->conteudo;
 
     if(a->destino != v) {
-      if(pre[a->destino] != 0) {
-        _busca_profundidade(g, a->destino, t, pre, pos);
+      if(pre[a->destino] == 0) {
+        _busca_profundidade(g, a->destino, t_pre, t_pos, pre, pos);
       }
     }
   }
 
-  pos[v] = ++(*t);
+  if(t_pos != NULL && pos != NULL) {
+    pos[v] = ++(*t_pos);
+  }
 }
 
 //------------------------------------------------------------------------------
 void busca_profundidade(grafo g, unsigned int **pre, unsigned int **pos) {
-  unsigned int i, t = 0;
+  unsigned int i, t_pre = 0, t_pos = 0;
 
   *pre = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
   *pos = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
 
   if(*pre != NULL && *pos != NULL) {
     for(i = 0; i < g->n_vertices; ++i) {
-      pre[i] = 0;
+      (*pre)[i] = 0;
     }
 
     for(i = 0; i < g->n_vertices; ++i) {
-      if(pre[i] == 0) {
-        _busca_profundidade(g, i, &t, *pre, *pos);
-      }
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-void _fortemente_conexo(grafo g, unsigned int i, unsigned int *t, unsigned int *pre, unsigned int *pos) {
-  struct no *n;
-  struct aresta *a;
-
-  pre[pos[i]] = ++(*t);
-
-  for(n = g->vertices[pos[i]].arestas->primeiro; n != NULL; n = n->proximo) {
-    a = (struct aresta *) n->conteudo;
-
-    if(a->origem != pos[i]) {
-      if(pre[a->origem] != 0) {
-        _fortemente_conexo(g, a->origem, t, pre, pos);
+      if((*pre)[i] == 0) {
+        _busca_profundidade(g, i, &t_pre, &t_pos, *pre, *pos);
       }
     }
   }
@@ -732,27 +718,43 @@ void _fortemente_conexo(grafo g, unsigned int i, unsigned int *t, unsigned int *
 //------------------------------------------------------------------------------
 int fortemente_conexo(grafo g) {
   unsigned int *pre, *pos;
-  unsigned int i, t = 0, n_comp = 0;
+  unsigned int i, v, t, max_pos, n_trees;
 
   busca_profundidade(g, &pre, &pos);
 
   if(pre != NULL && pos != NULL) {
+    t = 0;
+    n_trees = 0;
+
     for(i = 0; i < g->n_vertices; ++i) {
-      pre[pos[i]] = 0;
+      if(g->vertices[i].arestas->primeiro == NULL) {
+        return 0;
+      }
+
+      pre[i] = 0;
     }
 
-    for(i = g->n_vertices; i > 0; --i) {
-      if(pre[pos[i - 1]] == 0) {
-        _fortemente_conexo(g, i - 1, &t, pre, pos);
-        ++n_comp;
+    do {
+      max_pos = 0;
+
+      for(i = g->n_vertices; i > 0; --i) {
+        if(pre[i - 1] == 0 && max_pos < pos[i - 1]) {
+          max_pos = pos[i - 1];
+          v = i - 1;
+        }
       }
-    }
+
+      if(max_pos != 0) {
+        _busca_profundidade(g, v, &t, NULL, pre, NULL);
+        ++n_trees;
+      }
+    } while(max_pos != 0);
 
     free(pre);
     free(pos);
   }
 
-  return (n_comp < 2) ? 1 : 0;
+  return (n_trees < 2) ? 1 : 0;
 }
 
 //------------------------------------------------------------------------------
@@ -793,6 +795,12 @@ int main(void) {
   for(n = l->primeiro; n != NULL; n = n->proximo) {
     v = (struct vertice *) n->conteudo;
     fprintf(stdout, "%s\n", v->nome);
+  }
+
+  if(fortemente_conexo(g)) {
+    fprintf(stdout, "Fortemente conexo!\n");
+  } else {
+    fprintf(stdout, "Não é fortemente conexo!\n");
   }
 
   destroi_lista(l, _destroi);
