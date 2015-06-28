@@ -225,10 +225,9 @@ grafo le_grafo(FILE *input) {
                 a->origem = i;
                 a->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(aghead(e)));
                 insere_cabeca_conteudo(grafo_lido->vertices[i].arestas, a);
+                insere_cabeca_conteudo(grafo_lido->vertices[a->destino].arestas, a);
               }
             }
-
-
           }
         }
       }
@@ -308,7 +307,7 @@ grafo escreve_grafo(FILE *output, grafo g) {
     for(n = primeiro_no(g->vertices[i].arestas); n != NULL; n = proximo_no(n)) {
       a = (struct aresta *) n->conteudo;
 
-      if(g->direcionado || a->origem < a->destino) {
+      if(a->origem < a->destino) {
         fprintf(output, "    \"%s\" -%c \"%s\"\n", g->vertices[a->origem].nome, caractere_aresta, g->vertices[a->destino].nome);
       }
     }
@@ -672,6 +671,30 @@ grafo distancias(grafo g) {
 }
 
 //------------------------------------------------------------------------------
+void _busca_profundidade_transposta(grafo g, unsigned int v, unsigned int *t_pre, unsigned int *t_pos, unsigned int *pre, unsigned int *pos) {
+  struct no *n;
+  struct aresta *a;
+
+  if(t_pre != NULL && pre != NULL) {
+    pre[v] = ++(*t_pre);
+  }
+
+  for(n = g->vertices[v].arestas->primeiro; n != NULL; n = n->proximo) {
+    a = (struct aresta *) n->conteudo;
+
+    if(a->origem != v) {
+      if(pre[a->origem] == 0) {
+        _busca_profundidade_transposta(g, a->origem, t_pre, t_pos, pre, pos);
+      }
+    }
+  }
+
+  if(t_pos != NULL && pos != NULL) {
+    pos[v] = ++(*t_pos);
+  }
+}
+
+//------------------------------------------------------------------------------
 void _busca_profundidade(grafo g, unsigned int v, unsigned int *t_pre, unsigned int *t_pos, unsigned int *pre, unsigned int *pos) {
   struct no *n;
   struct aresta *a;
@@ -727,10 +750,6 @@ int fortemente_conexo(grafo g) {
     n_trees = 0;
 
     for(i = 0; i < g->n_vertices; ++i) {
-      if(g->vertices[i].arestas->primeiro == NULL) {
-        return 0;
-      }
-
       pre[i] = 0;
     }
 
@@ -745,7 +764,7 @@ int fortemente_conexo(grafo g) {
       }
 
       if(max_pos != 0) {
-        _busca_profundidade(g, v, &t, NULL, pre, NULL);
+        _busca_profundidade_transposta(g, v, &t, NULL, pre, NULL);
         ++n_trees;
       }
     } while(max_pos != 0);
