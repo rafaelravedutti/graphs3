@@ -6,7 +6,6 @@
 
 struct lista {
   struct no *primeiro;
-  unsigned int ref_count;
 };
 
 struct no {
@@ -31,16 +30,14 @@ struct grafo {
   int ponderado;
   vertice vertices;
   unsigned int n_vertices;
-  unsigned int ref_count;
 };
 
 const long int infinito = LONG_MAX;
 
 //------------------------------------------------------------------------------
 void inicializa_lista(lista *l) {
-  /* Aloca espaço pra lista */
   *l = (struct lista *) malloc(sizeof(struct lista));
-  /* Inicia lista vazia */
+
   if(*l != NULL) {
     (*l)->primeiro = NULL;
   }
@@ -48,6 +45,7 @@ void inicializa_lista(lista *l) {
 
 //------------------------------------------------------------------------------
 void insere_cabeca(lista l, no n) {
+  /* Insere o nó na cabeça (começo) da lista */
   n->proximo = l->primeiro;
   l->primeiro = n;
 }
@@ -56,6 +54,7 @@ void insere_cabeca(lista l, no n) {
 void insere_cabeca_conteudo(lista l, void *conteudo) {
   struct no *n;
 
+  /* Aloca o nó para o conteúdo e o insere no começo da lista */
   n = (struct no *) malloc(sizeof(struct no));
 
   if(n != NULL) {
@@ -68,6 +67,8 @@ void insere_cabeca_conteudo(lista l, void *conteudo) {
 int lista_contem(lista l, void *conteudo) {
   struct no *n;
 
+  /* Percorre os nós da lista até encontrar algum que tenha o conteúdo, se não
+     existir, retorna 0 */
   for(n = l->primeiro; n != NULL; n = n->proximo) {
     if(n->conteudo == conteudo) {
       return 1;
@@ -94,6 +95,7 @@ void *conteudo(no n) {
 
 //------------------------------------------------------------------------------
 int _destroi(void *p) {
+  /* Desaloca p, se p não é um ponteiro nulo */
   if(p != NULL) {
     free(p);
     return 0;
@@ -104,6 +106,8 @@ int _destroi(void *p) {
 
 //------------------------------------------------------------------------------
 int _mantem(void *p) {
+  /* Mantém p, função utilizada para remover apenas a lista, mas manter
+     os conteúdos alocados */
   return 1;
 }
 
@@ -113,11 +117,6 @@ int destroi_lista(lista l, int destroi(void *)) {
 
   if(l == NULL) {
     return 0;
-  }
-
-  if(l->ref_count > 1) {
-    --l->ref_count;
-    return 1;
   }
 
   for(n = l->primeiro; n != NULL; n = prox) {
@@ -193,9 +192,6 @@ grafo le_grafo(FILE *input) {
     /* Aloca a quantidade de memória necessária para armazenar todos os vértices */
     grafo_lido->vertices = (struct vertice *) malloc(sizeof(struct vertice) * grafo_lido->n_vertices);
 
-    /* Contador de ponteiros que referênciam a região */
-    grafo_lido->ref_count = 1;
-
     if(grafo_lido->vertices != NULL) {
       /* Percorre todos os vértices do grafo */
       for(i = 0, v = agfstnode(g); i < grafo_lido->n_vertices; ++i, v = agnxtnode(g, v)) {
@@ -208,7 +204,6 @@ grafo le_grafo(FILE *input) {
 
         if(grafo_lido->vertices[i].arestas != NULL) {
           grafo_lido->vertices[i].arestas->primeiro = NULL;
-          grafo_lido->vertices[i].arestas->ref_count = 1;
         }
       }
 
@@ -261,34 +256,30 @@ int destroi_grafo(void *g) {
   g_ptr = (grafo) g;
 
   if(g_ptr != NULL) {
-    if(g_ptr->ref_count > 1) {
-      --g_ptr->ref_count;
-    } else {
-      /* Libera a região de memória ocupada pelo nome do grafo, se não for nula */
-      if(g_ptr->nome != NULL) {
-        free(g_ptr->nome);
-      }
+    /* Libera a região de memória ocupada pelo nome do grafo, se não for nula */
+    if(g_ptr->nome != NULL) {
+      free(g_ptr->nome);
+    }
 
-      /* Libera a região de memória ocupada pelos vértices do grafo, se não for nula */
-      if(g_ptr->vertices != NULL) {
-        unsigned int i;
+    /* Libera a região de memória ocupada pelos vértices do grafo, se não for nula */
+    if(g_ptr->vertices != NULL) {
+      unsigned int i;
 
-        for(i = 0; i < g_ptr->n_vertices; ++i) {
-          if(g_ptr->vertices[i].nome != NULL) {
-            free(g_ptr->vertices[i].nome);
-          }
-
-          if(g_ptr->vertices[i].arestas != NULL) {
-            destroi_lista(g_ptr->vertices[i].arestas, _destroi);
-          }
+      for(i = 0; i < g_ptr->n_vertices; ++i) {
+        if(g_ptr->vertices[i].nome != NULL) {
+          free(g_ptr->vertices[i].nome);
         }
 
-        free(g_ptr->vertices);
+        if(g_ptr->vertices[i].arestas != NULL) {
+          destroi_lista(g_ptr->vertices[i].arestas, _destroi);
+        }
       }
 
-      /* Libera a região de memória ocupada pela estrutura do grafo */
-      free(g_ptr);
+      free(g_ptr->vertices);
     }
+
+    /* Libera a região de memória ocupada pela estrutura do grafo */
+    free(g_ptr);
   }
 
   return 1;
@@ -472,7 +463,10 @@ void _gera_componente(grafo g, lista vertices_componente, unsigned int *n_vertic
 
     for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
       a = (struct aresta *) n->conteudo;
-      _gera_componente(g, vertices_componente, n_vertices_componente, a->destino);
+
+      if(a->destino != r) {
+        _gera_componente(g, vertices_componente, n_vertices_componente, a->destino);
+      }
     }
 
     ++(*n_vertices_componente);
@@ -486,7 +480,7 @@ grafo gera_componente(grafo g, unsigned int r) {
   struct vertice *v;
   struct aresta *a, *aresta_componente;
   struct no *n, *no_arestas;
-  unsigned int n_vertices_componente = 1, count = 0;
+  unsigned int n_vertices_componente = 1, count;
 
   inicializa_lista(&vertices_componente);
   insere_cabeca_conteudo(vertices_componente, g->vertices + r);
@@ -494,7 +488,10 @@ grafo gera_componente(grafo g, unsigned int r) {
   /* Realiza uma busca adicionando todos os vértices do componente na lista */
   for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
     a = (struct aresta *) n->conteudo;
-    _gera_componente(g, vertices_componente, &n_vertices_componente, a->destino);
+
+    if(a->destino != r) {
+      _gera_componente(g, vertices_componente, &n_vertices_componente, a->destino);
+    }
   }
 
   componente = (struct grafo *) malloc(sizeof(struct grafo));
@@ -522,12 +519,17 @@ grafo gera_componente(grafo g, unsigned int r) {
 
         for(no_arestas = v->arestas->primeiro; no_arestas != NULL; no_arestas = no_arestas->proximo) {
           a = (struct aresta *) no_arestas->conteudo;
-          aresta_componente = (struct aresta *) malloc(sizeof(struct aresta));
 
-          if(aresta_componente != NULL) {
-            aresta_componente->origem = count;
-            aresta_componente->destino = encontra_vertice_indice(componente->vertices, componente->n_vertices, g->vertices[a->destino].nome);
-            insere_cabeca_conteudo(componente->vertices[count].arestas, aresta_componente);
+          if(v == g->vertices + a->origem) {
+            aresta_componente = (struct aresta *) malloc(sizeof(struct aresta));
+
+            if(aresta_componente != NULL) {
+              aresta_componente->origem = count;
+              aresta_componente->destino = encontra_vertice_indice(componente->vertices, componente->n_vertices, g->vertices[a->destino].nome);
+              aresta_componente->peso = a->peso;
+
+              insere_cabeca_conteudo(componente->vertices[count].arestas, aresta_componente);
+            }
           }
         }
       }
@@ -964,7 +966,7 @@ int main(void) {
       fprintf(stdout, "%s\n", v->nome);
     }
 
-    destroi_lista(l, _destroi);
+    destroi_lista(l, _mantem);
   }
 
   if((l = componentes(g)) != NULL) {
@@ -975,6 +977,7 @@ int main(void) {
 
     destroi_lista(l, destroi_grafo);
   }
+
 
   d = arvore_geradora_minima(g);
   if(d != NULL) {
