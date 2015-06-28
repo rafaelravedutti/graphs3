@@ -478,12 +478,21 @@ unsigned int n_vertices(grafo g) ;
 void _gera_bloco(grafo g, unsigned int i, lista *vertices_corte, grafo *bloco){
   struct aresta *a;
   struct no *n;
+  struct vertice *v;
 
   insere_cabeca_conteudo(blocos->vertices, g->vertices[i]);
   bloco->n_vertices++;
-  /* se não é vertice de corte */
+
+  for (n = primeiro_no(vertices_corte); n != NULL; n = proximo_no(n)){
+    v = (struct vertice *) n->conteudo; 
+    /* Se v é g->vertices[i] é vértice de corte, só retorna */
+    if (strcmp(v->nome, g->vertices[i]->nome) == 0){
+      return;
+    }
+  }
+
   if (encontra_vertice_indice(vertices_corte, NUMERO DE VERTICES DE CORTE :|, g->vertices[i]) == -1) {
-    for(n = g->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
+    for(n = primeiro_no(g->vertices[i].arestas); n != NULL; n = proximo_no(n)) {
       a = (struct aresta *) n->conteudo;
       /* se ainda nao está no bloco */
       if(encontra_vertice_indice(bloco->vertices, bloco->n_vertices, g->vertices[a->destino] == -1) {
@@ -492,6 +501,7 @@ void _gera_bloco(grafo g, unsigned int i, lista *vertices_corte, grafo *bloco){
     }
   }
 }
+
 //-----------------------------------------------------------------------------
 lista *gera_blocos(grafo g, lista *vertices_corte){
   unsigned int i;
@@ -512,30 +522,40 @@ lista *gera_blocos(grafo g, lista *vertices_corte){
   }
 }
 
+//-----------------------------------------------------------------------------
 void _vertices_corte(grafo g, unsigned int i, unsigned int *n_articulacoes, unsigned int **pre, unsigned int **pai, unsigned int **low, unsigned int **articulacoes, int *conta ) {
   unsigned int j;
   struct no *n;
   struct aresta *a;
+
+  /* Incrementa o contador externoe o atribui a pre[i] */
   pre[i] = ++(*conta);
+  /* No começo do laço, lowpoint de i é o próprio i */
   low[i] = pre[i];
+  /* Laço para percorrer cada aresta de g->vertices[i] */
   for (n = g->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
     a = (struct aresta *) n->conteudo;
     j = a->destino;
+    /* Se a ponta de g->vertices[i] ainda não foi foi incluída na pre-ordem */
     if (pre[j] == -1) {
-      parent[j] = i;
+      /* Indica que o j é um destino de g->vertices[i]*/
+      pai[j] = i;
+      /* Chama recursivamente a função para computar a pre-ordem filhos de j*/
       _vertices_corte(g, j, n_articulacoes ,&pre, pai, low, articulacoes, conta);
+      /* Se o lowerpoint do filho j é menor, então lowerpoint de i também é o de j */
       if (low[i] > low[j]){
         low[i] = low[j];
       }
       if (low[j] == pre[j]) {
         articulacoes[(*n_articulacoes)++] = i;
       }
-    } else if (j!= parent[i] && low[i] > pre[j]) {
+    } else if (j!= pai[i] && low[i] > pre[j]) {
       low[i] = pre[j];
     }
   }
 }
 
+//-----------------------------------------------------------------------------
 lista *vertices_corte(grafo g) {
   unsigned int *pre, *pai, *low, *articulacoes, i, conta, n_articulacoes;
   lista *lista_articulacoes;
@@ -574,6 +594,7 @@ lista *vertices_corte(grafo g) {
   return lista_articulacoes;
 }
 
+//-----------------------------------------------------------------------------
 lista blocos(grafo g) {
   if(g->direcionado) {
     return NULL;
