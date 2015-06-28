@@ -95,6 +95,9 @@ grafo le_grafo(FILE *input);
 // 
 // devolve 1 em caso de sucesso,
 //      ou 0, caso contrário
+//
+// g é um (void *) para que destroi_grafo() possa ser usada como argumento de
+// destroi_lista()
 
 int destroi_grafo(void *g);
 
@@ -150,7 +153,7 @@ lista blocos(grafo g);
 
 //------------------------------------------------------------------------------
 // devolve uma lista dos vértices de g ordenados topologicamente,
-//      ou NULL se g não é um grafo direcionado
+//      ou NULL se g não é um grafo direcionado ou se tem circuito direcionado
 
 lista ordena(grafo g);
 
@@ -171,7 +174,7 @@ grafo arborescencia_caminhos_minimos(grafo g, vertice r);
 //
 // o grafo é computado usando a função arborescencia_caminhos_minimos()
 
-grafo distancias(grafo g); //TODO
+grafo distancias(grafo g);
 
 //------------------------------------------------------------------------------
 // devolve 1, se g é fortemente conexo,
