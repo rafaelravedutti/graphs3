@@ -688,7 +688,7 @@ grafo distancias(grafo g) {
 
       dis->nome = NULL;
       dis->n_vertices = g->n_vertices;
-      dis->direcionado = 0;
+      dis->direcionado = g->direcionado;
       dis->ponderado = 1;
 
       for(i = 0; i < g->n_vertices; ++i) {
@@ -867,6 +867,8 @@ int main(void) {
     escreve_grafo(stdout, d);
     destroi_grafo(d);
   }
+
+  fprintf(stdout, "Diametro = %ld\n", diametro(g));
 
   if(fortemente_conexo(g)) {
     fprintf(stdout, "Fortemente conexo!\n");
