@@ -864,7 +864,7 @@ long int diametro(grafo g) {
     for(n = dis->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
       a = (struct aresta *) n->conteudo;
 
-      if(diametro < a->peso) {
+      if(diametro < a->peso && a->peso != infinito) {
         diametro = a->peso;
       }
     }
