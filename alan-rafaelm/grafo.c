@@ -156,7 +156,6 @@ grafo le_grafo(FILE *input) {
   Agnode_t *v;
   Agedge_t *e;
   struct grafo *grafo_lido;
-  struct no *n;
   struct aresta *a;
   unsigned int i;
 
@@ -202,33 +201,34 @@ grafo le_grafo(FILE *input) {
       }
 
       /* Percorre todos os vértices do grafo */
-      for(i = 0, v = agfstnode(g); i < grafo_lido->n_vertices; ++i, v = agnxtnode(g, v)) {
+      for(v = agfstnode(g); v != NULL; v = agnxtnode(g, v)) {
+        i = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(v));
+
         if(grafo_lido->vertices[i].arestas != NULL) {
           /* Percorre todas as arestas adjacentes do vértice */
           for(e = agfstedge(g, v); e != NULL; e = agnxtedge(g, e, v)) {
-            /* Aloca o novo nó da aresta */
-            n = (struct no *) malloc(sizeof(struct no));
+            a = (struct aresta *) malloc(sizeof(struct aresta));
 
-            /* Adiciona o nó da aresta na lista de adjacência do vértice */
-            if(n != NULL) {
-              n->proximo = grafo_lido->vertices[i].arestas->primeiro;
-              n->conteudo = malloc(sizeof(struct aresta));
+            if(!grafo_lido->direcionado) {
+              a->origem = i;
 
-              if(n->conteudo != NULL) {
-                a = (struct aresta *) n->conteudo;
-
-                /* Define o destino da aresta */
-                if(strcmp(grafo_lido->vertices[i].nome, agnameof(aghead(e))) == 0) {
-                  a->origem = i;
-                  a->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(agtail(e)));
-                } else {
-                  a->destino = i;
-                  a->origem = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(aghead(e)));
-                }
+              if(v == aghead(e)) {
+                a->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(agtail(e)));
+              } else {
+                a->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(aghead(e)));
               }
 
-              grafo_lido->vertices[i].arestas->primeiro = n;
+              insere_cabeca_conteudo(grafo_lido->vertices[i].arestas, a);
+            } else {
+              if(v == agtail(e)) {
+                a = (struct aresta *) malloc(sizeof(struct aresta));
+                a->origem = i;
+                a->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(aghead(e)));
+                insere_cabeca_conteudo(grafo_lido->vertices[i].arestas, a);
+              }
             }
+
+
           }
         }
       }
@@ -308,8 +308,8 @@ grafo escreve_grafo(FILE *output, grafo g) {
     for(n = primeiro_no(g->vertices[i].arestas); n != NULL; n = proximo_no(n)) {
       a = (struct aresta *) n->conteudo;
 
-      if(g->direcionado || i < a->destino) {
-        fprintf(output, "    \"%s\" -%c \"%s\"\n", g->vertices[i].nome, caractere_aresta, g->vertices[a->destino].nome);
+      if(g->direcionado || a->origem < a->destino) {
+        fprintf(output, "    \"%s\" -%c \"%s\"\n", g->vertices[a->origem].nome, caractere_aresta, g->vertices[a->destino].nome);
       }
     }
   }
@@ -486,10 +486,11 @@ void _ordena(grafo g, lista l, unsigned int v, unsigned char *v_processado, unsi
   struct aresta *a;
 
   v_processado[v] = 1;
+
   for(n = g->vertices[v].arestas->primeiro; n != NULL; n = n->proximo) {
     a = (struct aresta *) n->conteudo;
 
-    if(a->destino != v) {
+    if(a->destino != v && v_processado[a->destino] == 0) {
       v_pai[a->destino] = v;
       _ordena(g, l, a->destino, v_processado, v_pai);
     }
@@ -516,6 +517,8 @@ lista ordena(grafo g) {
     v_pai = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
 
     if(v_processado != NULL && v_pai != NULL) {
+      l->primeiro = NULL;
+
       for(i = 0; i < g->n_vertices; ++i) {
         v_processado[i] = 0;
         v_pai[i] = (unsigned int) -1;
@@ -778,5 +781,21 @@ long int diametro(grafo g) {
 
 //------------------------------------------------------------------------------
 int main(void) {
-  return ! destroi_grafo(escreve_grafo(stdout, le_grafo(stdin)));
+  struct grafo *g;
+  struct vertice *v;
+  struct no *n;
+  lista l;
+
+  g = le_grafo(stdin);
+  escreve_grafo(stdout, g);
+  l = ordena(g);
+
+  for(n = l->primeiro; n != NULL; n = n->proximo) {
+    v = (struct vertice *) n->conteudo;
+    fprintf(stdout, "%s\n", v->nome);
+  }
+
+  destroi_lista(l, _destroi);
+  destroi_grafo(g);
+  return 0;
 }
