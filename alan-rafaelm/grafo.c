@@ -157,6 +157,8 @@ grafo le_grafo(FILE *input) {
   Agedge_t *e;
   struct grafo *grafo_lido;
   struct aresta *a;
+  char *peso;
+  char peso_string[] = "peso";
   unsigned int i;
 
   /* Aloca a estrutura do grafo */
@@ -177,6 +179,13 @@ grafo le_grafo(FILE *input) {
     grafo_lido->direcionado = agisdirected(g);
     grafo_lido->nome = strdup(agnameof(g));
     grafo_lido->n_vertices = agnnodes(g);
+
+    /* Verifica se g é um grafo ponderado ou não */
+    if(agattr(g, AGEDGE, peso_string, (char *) NULL) != NULL) {
+      grafo_lido->ponderado = 1;
+    } else {
+      grafo_lido->ponderado = 0;
+    }
 
     /* Aloca a quantidade de memória necessária para armazenar todos os vértices */
     grafo_lido->vertices = (struct vertice *) malloc(sizeof(struct vertice) * grafo_lido->n_vertices);
@@ -207,9 +216,11 @@ grafo le_grafo(FILE *input) {
         if(grafo_lido->vertices[i].arestas != NULL) {
           /* Percorre todas as arestas adjacentes do vértice */
           for(e = agfstedge(g, v); e != NULL; e = agnxtedge(g, e, v)) {
-            a = (struct aresta *) malloc(sizeof(struct aresta));
+            peso = agget(e, "peso");
 
             if(!grafo_lido->direcionado) {
+              a = (struct aresta *) malloc(sizeof(struct aresta));
+              a->peso = (peso != NULL && *peso != '\0') ? atoi(peso) : 1;
               a->origem = i;
 
               if(v == aghead(e)) {
@@ -222,6 +233,7 @@ grafo le_grafo(FILE *input) {
             } else {
               if(v == agtail(e)) {
                 a = (struct aresta *) malloc(sizeof(struct aresta));
+                a->peso = (peso != NULL && *peso != '\0') ? atoi(peso) : 1;
                 a->origem = i;
                 a->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(aghead(e)));
                 insere_cabeca_conteudo(grafo_lido->vertices[i].arestas, a);
@@ -307,8 +319,19 @@ grafo escreve_grafo(FILE *output, grafo g) {
     for(n = primeiro_no(g->vertices[i].arestas); n != NULL; n = proximo_no(n)) {
       a = (struct aresta *) n->conteudo;
 
-      if(a->origem < a->destino) {
-        fprintf(output, "    \"%s\" -%c \"%s\"\n", g->vertices[a->origem].nome, caractere_aresta, g->vertices[a->destino].nome);
+      if((g->direcionado && a->origem == i) || (!g->direcionado && a->origem < a->destino)) {
+        fprintf(output, "    \"%s\" -%c \"%s\"", g->vertices[a->origem].nome, caractere_aresta, g->vertices[a->destino].nome);
+
+        /* Se g é um grafo ponderado, imprime o peso da aresta */
+        if(g->ponderado == 1) {
+          if(a->peso == infinito) {
+            fprintf(output, " [peso=oo]");
+          } else {
+            fprintf(output, " [peso=%ld]", a->peso);
+          }
+        }
+
+        fprintf(output, "\n");
       }
     }
   }
@@ -557,7 +580,7 @@ grafo arborescencia_caminhos_minimos(grafo g, vertice r) {
     vertice_processado = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
     distancias = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
 
-    if(t->vertices != NULL && vertice_processado != NULL) {
+    if(t->vertices != NULL && vertice_processado != NULL && distancias != NULL) {
       for(i = 0; i < g->n_vertices; ++i) {
         t->vertices[i].nome = strdup(g->vertices[i].nome);
         t->vertices[i].arestas = (struct lista *) malloc(sizeof(struct lista));
@@ -611,9 +634,9 @@ grafo arborescencia_caminhos_minimos(grafo g, vertice r) {
 }
 
 //------------------------------------------------------------------------------
-void computa_distancia(struct grafo *dis, struct grafo *acm, unsigned int v, struct no *n, unsigned int d) {
+void computa_distancia(struct grafo *dis, struct grafo *acm, unsigned int v, struct no *n, long int d) {
   struct no *no_distancia, *p;
-  struct aresta *a, *aresta_distancia;
+  struct aresta *a, *aresta_p, *aresta_distancia;
 
   no_distancia = (struct no *) malloc(sizeof(struct no));
 
@@ -629,7 +652,8 @@ void computa_distancia(struct grafo *dis, struct grafo *acm, unsigned int v, str
     dis->vertices[v].arestas->primeiro = no_distancia;
 
     for(p = acm->vertices[a->destino].arestas->primeiro; p != NULL; p = p->proximo) {
-      computa_distancia(dis, acm, v, p, d + 1);
+      aresta_p = (struct aresta *) p;
+      computa_distancia(dis, acm, v, p, d + aresta_p->peso);
     }
   }
 }
@@ -638,6 +662,7 @@ void computa_distancia(struct grafo *dis, struct grafo *acm, unsigned int v, str
 grafo distancias(grafo g) {
   struct grafo *dis, *acm;
   struct no *n;
+  struct aresta *a;
   unsigned int i;
 
   dis = (struct grafo *) malloc(sizeof(struct grafo));
@@ -659,7 +684,8 @@ grafo distancias(grafo g) {
         acm = arborescencia_caminhos_minimos(g, g->vertices + i);
 
         for(n = acm->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
-          computa_distancia(dis, acm, i, n, 1);
+          a = (struct aresta *) n->conteudo;
+          computa_distancia(dis, acm, i, n, a->peso);
         }
 
         destroi_grafo(acm);
@@ -809,11 +835,14 @@ int main(void) {
 
   g = le_grafo(stdin);
   escreve_grafo(stdout, g);
-  l = ordena(g);
 
-  for(n = l->primeiro; n != NULL; n = n->proximo) {
-    v = (struct vertice *) n->conteudo;
-    fprintf(stdout, "%s\n", v->nome);
+  if((l = ordena(g)) != NULL) {
+    for(n = l->primeiro; n != NULL; n = n->proximo) {
+      v = (struct vertice *) n->conteudo;
+      fprintf(stdout, "%s\n", v->nome);
+    }
+
+    destroi_lista(l, _destroi);
   }
 
   if(fortemente_conexo(g)) {
@@ -822,7 +851,6 @@ int main(void) {
     fprintf(stdout, "Não é fortemente conexo!\n");
   }
 
-  destroi_lista(l, _destroi);
   destroi_grafo(g);
   return 0;
 }
