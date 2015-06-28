@@ -105,6 +105,24 @@ int _destroi(void *p) {
 }
 
 //------------------------------------------------------------------------------
+int destroi_vertice(void *v) {
+  struct vertice *v_ptr;
+
+  if(v != NULL) {
+    v_ptr = (struct vertice *) v;
+
+    if(v_ptr->nome != NULL) {
+      free(v_ptr->nome);
+    }
+
+    free(v);
+    return 0;
+  }
+
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 int _mantem(void *p) {
   /* Mantém p, função utilizada para remover apenas a lista, mas manter
      os conteúdos alocados */
@@ -234,6 +252,7 @@ grafo le_grafo(FILE *input) {
                 a->peso = (peso != NULL && *peso != '\0') ? atoi(peso) : 1;
                 a->origem = i;
                 a->destino = encontra_vertice_indice(grafo_lido->vertices, grafo_lido->n_vertices, agnameof(aghead(e)));
+
                 insere_cabeca_conteudo(grafo_lido->vertices[i].arestas, a);
                 insere_cabeca_conteudo(grafo_lido->vertices[a->destino].arestas, a);
               }
@@ -598,6 +617,7 @@ lista blocos(grafo g) {
 void _ordena(grafo g, lista l, unsigned int v, unsigned char *v_processado, unsigned int *v_pai) {
   struct no *n;
   struct aresta *a;
+  struct vertice *w;
 
   v_processado[v] = 1;
 
@@ -610,7 +630,9 @@ void _ordena(grafo g, lista l, unsigned int v, unsigned char *v_processado, unsi
     }
   }
 
-  insere_cabeca_conteudo(l, g->vertices + v);
+  w = (struct vertice *) malloc(sizeof(struct vertice));
+  w->nome = strdup(g->vertices[v].nome);
+  insere_cabeca_conteudo(l, w);
 }
 
 //------------------------------------------------------------------------------
@@ -772,7 +794,7 @@ grafo distancias(grafo g) {
     dis->vertices = (struct vertice *) malloc(sizeof(struct vertice) * g->n_vertices);
     v_processado = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
 
-    if(dis->vertices != NULL) {
+    if(dis->vertices != NULL && v_processado != NULL) {
       for(i = 0; i < g->n_vertices; ++i) {
         dis->vertices[i].arestas = (struct lista *) malloc(sizeof(struct lista));
         dis->vertices[i].arestas->primeiro = NULL;
@@ -814,6 +836,8 @@ grafo distancias(grafo g) {
 
         destroi_grafo(acm);
       }
+
+      free(v_processado);
     }
   }
 
@@ -966,7 +990,7 @@ int main(void) {
       fprintf(stdout, "%s\n", v->nome);
     }
 
-    destroi_lista(l, _mantem);
+    destroi_lista(l, destroi_vertice);
   }
 
   if((l = componentes(g)) != NULL) {
@@ -977,7 +1001,6 @@ int main(void) {
 
     destroi_lista(l, destroi_grafo);
   }
-
 
   d = arvore_geradora_minima(g);
   if(d != NULL) {
@@ -996,6 +1019,7 @@ int main(void) {
     escreve_grafo(stdout, d);
     destroi_grafo(d);
   }
+
 
   fprintf(stdout, "Diametro = %ld\n", diametro(g));
 
