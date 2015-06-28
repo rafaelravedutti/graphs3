@@ -503,23 +503,23 @@ char *nome_vertice(vertice v) ;
 unsigned int encontra_vertice_indice(struct vertice *vertices, unsigned int n_vertices, const char *nome) ;
 char *nome(grafo g) ;
 unsigned int n_vertices(grafo g) ;
-void _gera_bloco(grafo , unsigned int , lista *, struct grafo *bloco) ;
-lista *gera_blocos(grafo , lista *) ;
+void _gera_bloco(grafo , unsigned int , lista, grafo) ;
+lista gera_blocos(grafo , lista) ;
 void _vertices_corte(grafo , unsigned int , unsigned int *, unsigned int *, unsigned int *, unsigned int *, unsigned int *, unsigned int * ) ;
-lista *vertices_corte(grafo) ;
+lista vertices_corte(grafo) ;
 lista blocos(grafo) ;
 
 
 
 
 //------------------------------------------------------------------------------
-void _gera_bloco(grafo g, unsigned int i, lista *vertices_corte, struct grafo *bloco) {
+void _gera_bloco(grafo g, unsigned int i, lista vertices_corte, grafo bloco) {
   struct aresta *a;
   struct no *n;
 
   bloco->vertices[bloco->n_vertices++] = *(g->vertices + i);
 
-  if(!lista_contem(*vertices_corte, g->vertices + i)) {
+  if(!lista_contem(vertices_corte, g->vertices + i)) {
     for(n = primeiro_no(g->vertices[i].arestas); n != NULL; n = proximo_no(n)) {
       a = (struct aresta *) n->conteudo;
       /* se ainda nao está no bloco */
@@ -531,22 +531,28 @@ void _gera_bloco(grafo g, unsigned int i, lista *vertices_corte, struct grafo *b
 }
 
 //-----------------------------------------------------------------------------
-lista *gera_blocos(grafo g, lista *vertices_corte) {
+lista gera_blocos(grafo g, lista vertices_corte) {
   unsigned int i;
-  lista *lista_blocos;
+  lista lista_blocos;
   struct grafo *bloco;
-  lista_blocos = (lista *) malloc(sizeof(lista));
-  inicializa_lista(lista_blocos);
 
-  for (i = 0; i < g->n_vertices; ++i) {
-    bloco = (struct grafo *) malloc(sizeof(struct grafo));
-    bloco->nome = NULL;
-    bloco->direcionado = 0;
-    bloco->ponderado = g->ponderado;
-    bloco->n_vertices = 0;
+  lista_blocos = (lista) malloc(sizeof(struct lista));
+  inicializa_lista(&lista_blocos);
 
-    _gera_bloco(g, i, vertices_corte, bloco);
-    insere_cabeca_conteudo(*lista_blocos, bloco);
+  if (vertices_corte == NULL) {
+    insere_cabeca_conteudo(lista_blocos, g);
+  } else {
+    for (i = 0; i < g->n_vertices; ++i) {
+      bloco = (struct grafo *) malloc(sizeof(struct grafo));
+      bloco->vertices = (struct vertice *) malloc(sizeof(struct vertice) * g->n_vertices);
+      bloco->nome = NULL;
+      bloco->direcionado = 0;
+      bloco->ponderado = g->ponderado;
+      bloco->n_vertices = 0;
+
+      _gera_bloco(g, i, vertices_corte, bloco);
+      insere_cabeca_conteudo(lista_blocos, bloco);
+    }
   }
   return lista_blocos;
 }
@@ -556,6 +562,8 @@ void _vertices_corte(grafo g, unsigned int i, unsigned int *n_articulacoes, unsi
   unsigned int j;
   struct no *n;
   struct aresta *a;
+  unsigned int v, i_adicionado, j_adicionado;
+
 
   /* Incrementa o contador externoe o atribui a pre[i] */
   pre[i] = ++(*conta);
@@ -576,7 +584,23 @@ void _vertices_corte(grafo g, unsigned int i, unsigned int *n_articulacoes, unsi
         low[i] = low[j];
       }
       if (low[j] == pre[j]) {
-        articulacoes[(*n_articulacoes)++] = i;
+        /* Achou aresta de corte */
+        i_adicionado = 0;
+        j_adicionado = 0;
+        for(v = 0; v < *n_articulacoes && i_adicionado && j_adicionado; ++v){
+          if (articulacoes[v] == i) {
+            i_adicionado = 1;
+          }
+          if (articulacoes[v] == j) {
+            j_adicionado = 1;
+          }
+        }
+        if (!i_adicionado) {
+          articulacoes[(*n_articulacoes)++] = i;
+        }
+        if (!j_adicionado) {
+          articulacoes[(*n_articulacoes)++] = j;
+        }
       }
     } else if (j!= pai[i] && low[i] > pre[j]) {
       low[i] = pre[j];
@@ -585,34 +609,44 @@ void _vertices_corte(grafo g, unsigned int i, unsigned int *n_articulacoes, unsi
 }
 
 //-----------------------------------------------------------------------------
-lista *vertices_corte(grafo g) {
-  unsigned int *pre, *pai, *low, *articulacoes, i, conta, n_articulacoes;
-  lista *lista_articulacoes;
+lista vertices_corte(grafo g) {
+  unsigned int *pre, *pai, *low, *articulacoes;
+  unsigned int i, conta = 0, n_articulacoes = 0;
+  vertice v, v_copia;
+  lista lista_articulacoes;
   pre = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
   pai = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
   low = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
-  /* O número máximo de articulações em um grafo eh n-2 */
-  articulacoes = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int) - 2);
-  lista_articulacoes = (lista *) malloc(sizeof(struct lista));
-  inicializa_lista(lista_articulacoes);
-
-  conta = 0;
-  n_articulacoes = 0;
+  articulacoes = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
+  
+  lista_articulacoes = (lista) malloc(sizeof(struct lista));
+  inicializa_lista(&lista_articulacoes);
 
   if (pre != NULL && pai != NULL && low != NULL && articulacoes != NULL) {
     for (i = 0; i < g->n_vertices; ++i) {
       pre[i] = -1;
+      articulacoes[i] = -1;
     }
     for (i = 0; i < g->n_vertices; ++i) {
       if (pre[i] == -1) {
         pai[i] = i;
         _vertices_corte(g, i, &n_articulacoes, pre, pai, low, articulacoes, &conta);
+        conta = 0;
       }
     }
   }
 
   for (i = 0; i < n_articulacoes; ++i) {
-    insere_cabeca_conteudo(*lista_articulacoes, g->vertices + articulacoes[i]);
+    v = g->vertices + articulacoes[i];
+    v_copia = (vertice) malloc (sizeof(struct vertice));
+    v_copia->arestas = (lista) malloc(sizeof(struct lista));
+
+    v_copia->nome = strdup(v->nome);
+    v_copia->arestas = v->arestas;
+
+    ++(v->arestas->ref_count);
+
+    insere_cabeca_conteudo(lista_articulacoes, v_copia);
   }
 
   free(pre);
@@ -620,6 +654,9 @@ lista *vertices_corte(grafo g) {
   free(low);
   free(articulacoes);
 
+  if (n_articulacoes == 0){
+    return NULL;
+  }
   return lista_articulacoes;
 }
 
@@ -628,11 +665,18 @@ lista blocos(grafo g) {
   if(g->direcionado) {
     return NULL;
   }
-  
-  lista * vertices_de_corte, * lista_blocos;
+
+  lista vertices_de_corte, lista_blocos;
   vertices_de_corte = vertices_corte(g);
-  lista_blocos = gera_blocos(g, vertices_de_corte);
-  return *lista_blocos;
+  /* Se a lista está vazia, então g só possui 1 bloco */
+  if(vertices_de_corte == NULL){
+    lista_blocos = (lista) malloc(sizeof(struct lista));
+    inicializa_lista(&lista_blocos);
+    insere_cabeca_conteudo(lista_blocos, g);
+  } else {
+    lista_blocos = gera_blocos(g, vertices_de_corte);
+  }
+  return lista_blocos;
 }
 
 //------------------------------------------------------------------------------
@@ -961,10 +1005,11 @@ long int diametro(grafo g) {
 
 //------------------------------------------------------------------------------
 int main(void) {
-  struct grafo *g;
+  struct grafo *g, *grafo_na_lista;
   struct vertice *v;
   struct no *n;
   lista l;
+  lista l_blocos;
 
   g = le_grafo(stdin);
   escreve_grafo(stdout, g);
@@ -982,6 +1027,18 @@ int main(void) {
     fprintf(stdout, "Fortemente conexo!\n");
   } else {
     fprintf(stdout, "Não é fortemente conexo!\n");
+  }
+
+  fprintf(stderr, "\n--Imprimindo blocos:\n" );
+  
+  if((l_blocos = blocos(g)) != NULL) {
+    fprintf(stderr, "\n--Blocos criados:\n" );
+    for(n = l_blocos->primeiro; n != NULL; n = n->proximo) {
+      grafo_na_lista = (struct grafo *) n->conteudo;
+      escreve_grafo(stdout, grafo_na_lista);
+    }
+
+    destroi_lista(l_blocos, _destroi);
   }
 
   destroi_grafo(g);
