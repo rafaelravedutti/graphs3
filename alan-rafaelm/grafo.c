@@ -35,7 +35,7 @@ struct grafo {
 const long int infinito = LONG_MAX;
 
 //------------------------------------------------------------------------------
-void inicializa_lista(lista *l) {
+static void inicializa_lista(lista *l) {
   *l = (struct lista *) malloc(sizeof(struct lista));
 
   if(*l != NULL) {
@@ -44,14 +44,14 @@ void inicializa_lista(lista *l) {
 }
 
 //------------------------------------------------------------------------------
-void insere_cabeca(lista l, no n) {
+static void insere_cabeca(lista l, no n) {
   /* Insere o nó na cabeça (começo) da lista */
   n->proximo = l->primeiro;
   l->primeiro = n;
 }
 
 //------------------------------------------------------------------------------
-void insere_cabeca_conteudo(lista l, void *conteudo) {
+static void insere_cabeca_conteudo(lista l, void *conteudo) {
   struct no *n;
 
   /* Aloca o nó para o conteúdo e o insere no começo da lista */
@@ -64,7 +64,7 @@ void insere_cabeca_conteudo(lista l, void *conteudo) {
 }
 
 //------------------------------------------------------------------------------
-int lista_contem(lista l, void *conteudo) {
+static int lista_contem(lista l, void *conteudo) {
   struct no *n;
 
   /* Percorre os nós da lista até encontrar algum que tenha o conteúdo, se não
@@ -124,7 +124,7 @@ int destroi_vertice(void *v) {
 }
 
 //------------------------------------------------------------------------------
-int _mantem(void *p) {
+static int _mantem(void *p) {
   /* Mantém p, função utilizada para remover apenas a lista, mas manter
      os conteúdos alocados */
   return 1;
@@ -159,7 +159,7 @@ char *nome_vertice(vertice v) {
 }
 
 //------------------------------------------------------------------------------
-unsigned int encontra_vertice_indice(struct vertice *vertices, unsigned int n_vertices, const char *nome) {
+static unsigned int encontra_vertice_indice(struct vertice *vertices, unsigned int n_vertices, const char *nome) {
   unsigned int i;
 
   /* Percorre todos os vértices da estrutura */
@@ -516,7 +516,7 @@ grafo arvore_geradora_minima(grafo g) {
 }
 
 //------------------------------------------------------------------------------
-void _gera_componente(grafo g, lista vertices_componente, unsigned int *n_vertices_componente, unsigned int r) {
+static void _gera_componente(grafo g, lista vertices_componente, unsigned int *n_vertices_componente, unsigned int r) {
   struct no *n;
   struct aresta *a;
 
@@ -539,7 +539,7 @@ void _gera_componente(grafo g, lista vertices_componente, unsigned int *n_vertic
 }
 
 //------------------------------------------------------------------------------
-grafo gera_componente(grafo g, unsigned int r) {
+static grafo gera_componente(grafo g, unsigned int r) {
   struct grafo *componente;
   struct lista *vertices_componente;
   struct vertice *v;
@@ -672,7 +672,7 @@ lista blocos(grafo g) {
 }
 
 //------------------------------------------------------------------------------
-void _ordena(grafo g, lista l, unsigned int v, unsigned char *v_processado, unsigned int *v_pai) {
+static void _ordena(grafo g, lista l, unsigned int v, unsigned char *v_processado, unsigned int *v_pai) {
   struct no *n;
   struct aresta *a;
   struct vertice *w;
@@ -841,7 +841,7 @@ grafo arborescencia_caminhos_minimos(grafo g, vertice r) {
 }
 
 //------------------------------------------------------------------------------
-void computa_distancia(struct grafo *dis, struct grafo *acm, unsigned int v, struct no *n, long int d, unsigned int *v_processado) {
+static void computa_distancia(struct grafo *dis, struct grafo *acm, unsigned int v, struct no *n, long int d, unsigned int *v_processado) {
   struct no *p;
   struct aresta *a, *aresta_p, *aresta_distancia;
 
@@ -953,7 +953,7 @@ grafo distancias(grafo g) {
 }
 
 //------------------------------------------------------------------------------
-void _busca_profundidade_transposta(grafo g, unsigned int v, unsigned int *t_pre, unsigned int *t_pos, unsigned int *pre, unsigned int *pos) {
+static void _busca_profundidade_transposta(grafo g, unsigned int v, unsigned int *t_pre, unsigned int *t_pos, unsigned int *pre, unsigned int *pos) {
   struct no *n;
   struct aresta *a;
 
@@ -982,7 +982,7 @@ void _busca_profundidade_transposta(grafo g, unsigned int v, unsigned int *t_pre
 }
 
 //------------------------------------------------------------------------------
-void _busca_profundidade(grafo g, unsigned int v, unsigned int *t_pre, unsigned int *t_pos, unsigned int *pre, unsigned int *pos) {
+static void _busca_profundidade(grafo g, unsigned int v, unsigned int *t_pre, unsigned int *t_pos, unsigned int *pre, unsigned int *pos) {
   struct no *n;
   struct aresta *a;
 
@@ -1107,63 +1107,4 @@ long int diametro(grafo g) {
   destroi_grafo(dis);
 
   return diametro;
-}
-
-//------------------------------------------------------------------------------
-int main(void) {
-  struct grafo *g, *d, *c;
-  struct vertice *v;
-  struct no *n;
-  lista l;
-
-  g = le_grafo(stdin);
-  escreve_grafo(stdout, g);
-
-  if((l = ordena(g)) != NULL) {
-    for(n = l->primeiro; n != NULL; n = n->proximo) {
-      v = (struct vertice *) n->conteudo;
-      fprintf(stdout, "%s\n", v->nome);
-    }
-
-    destroi_lista(l, destroi_vertice);
-  }
-
-  if((l = componentes(g)) != NULL) {
-    for(n = l->primeiro; n != NULL; n = n->proximo) {
-      c = (struct grafo *) n->conteudo;
-      escreve_grafo(stdout, c);
-    }
-
-    destroi_lista(l, destroi_grafo);
-  }
-
-  d = arvore_geradora_minima(g);
-  if(d != NULL) {
-    escreve_grafo(stdout, d);
-    destroi_grafo(d);
-  }
-
-  d = arborescencia_caminhos_minimos(g, g->vertices);
-  if(d != NULL) {
-    escreve_grafo(stdout, d);
-    destroi_grafo(d);
-  }
-
-  d = distancias(g);
-  if(d != NULL) {
-    escreve_grafo(stdout, d);
-    destroi_grafo(d);
-  }
-
-
-  fprintf(stdout, "Diametro = %ld\n", diametro(g));
-
-  if(fortemente_conexo(g)) {
-    fprintf(stdout, "Fortemente conexo!\n");
-  } else {
-    fprintf(stdout, "Não é fortemente conexo!\n");
-  }
-
-  destroi_grafo(g);
-  return 0;
 }
