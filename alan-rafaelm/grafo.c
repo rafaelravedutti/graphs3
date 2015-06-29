@@ -986,7 +986,7 @@ static void _busca_profundidade(grafo g, unsigned int v, unsigned int *t_pre, un
 }
 
 //------------------------------------------------------------------------------
-void busca_profundidade(grafo g, unsigned int **pre, unsigned int **pos) {
+static void busca_profundidade(grafo g, unsigned int **pre, unsigned int **pos) {
   unsigned int i, t_pre = 0, t_pos = 0;
 
   /* Aloca os vetores de ordenação em pré-ordem e pós-ordem */
