@@ -510,6 +510,7 @@ lista vertices_corte(grafo) ;
 lista blocos(grafo) ;
 
 
+//------------------------------------------------------------------------------
 void _gera_bloco(grafo g, lista vertices_corte, lista vertices_bloco, unsigned int *n_vertices_bloco, unsigned int r) {
   struct no *n;
   struct aresta *a;
