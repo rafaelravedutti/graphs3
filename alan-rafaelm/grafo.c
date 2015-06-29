@@ -465,7 +465,7 @@ grafo arvore_geradora_minima(grafo g) {
           vertice_processado[aresta_selecionada->destino] = 1;
           ++vertices_processados;
 
-          /* Aloca a aresta a ser adicionada */
+          /* Aloca a aresta a ser adicionada na origem */
           a = (struct aresta *) malloc(sizeof(struct aresta));
 
           if(a != NULL) {
@@ -475,6 +475,19 @@ grafo arvore_geradora_minima(grafo g) {
             a->peso = aresta_selecionada->peso;
 
             /* Insere a aresta no vértice de origem em t */
+            insere_cabeca_conteudo(t->vertices[aresta_selecionada->origem].arestas, a);
+          }
+
+          /* Aloca a aresta a ser adicionada no destino */
+          a = (struct aresta *) malloc(sizeof(struct aresta));
+
+          if(a != NULL) {
+            /* Define os dados da aresta */
+            a->origem = aresta_selecionada->destino;
+            a->destino = aresta_selecionada->origem;
+            a->peso = aresta_selecionada->peso;
+
+            /* Insere a aresta no vértice de destino em t */
             insere_cabeca_conteudo(t->vertices[aresta_selecionada->origem].arestas, a);
           }
         }
