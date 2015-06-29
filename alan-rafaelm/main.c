@@ -1,6 +1,7 @@
+#include <stdlib.h>
 #include "grafo.h"
 
-int nao_destroi(void *p) {
+int nao_destroi_nos(void *p) {
   return 1;
 }
 
@@ -20,8 +21,7 @@ int main(void) {
       fprintf(stdout, "%s\n", nome_vertice(v));
     }
 
-    v = conteudo(primeiro_no(l));
-    destroi_lista(l, nao_destroi);
+    destroi_lista(l, nao_destroi_nos);
   }
 
   if((l = componentes(g)) != NULL) {
@@ -39,11 +39,13 @@ int main(void) {
     destroi_grafo(d);
   }
 
+  /*
   d = arborescencia_caminhos_minimos(g, v);
   if(d != NULL) {
     escreve_grafo(stdout, d);
     destroi_grafo(d);
   }
+  */
 
   d = distancias(g);
   if(d != NULL) {

@@ -105,25 +105,6 @@ int _destroi(void *p) {
 }
 
 //------------------------------------------------------------------------------
-int destroi_vertice(void *v) {
-  struct vertice *v_ptr;
-
-  /* Libera a região ocupada pelo ponteiro e pelo nome do vértice */
-  if(v != NULL) {
-    v_ptr = (struct vertice *) v;
-
-    if(v_ptr->nome != NULL) {
-      free(v_ptr->nome);
-    }
-
-    free(v);
-    return 0;
-  }
-
-  return 1;
-}
-
-//------------------------------------------------------------------------------
 static int _mantem(void *p) {
   /* Mantém p, função utilizada para remover apenas a lista, mas manter
      os conteúdos alocados */
@@ -675,7 +656,6 @@ lista blocos(grafo g) {
 static void _ordena(grafo g, lista l, unsigned int v, unsigned char *v_processado, unsigned int *v_pai) {
   struct no *n;
   struct aresta *a;
-  struct vertice *w;
 
   /* Marca o vértice v como processado */
   v_processado[v] = 1;
@@ -691,12 +671,8 @@ static void _ordena(grafo g, lista l, unsigned int v, unsigned char *v_processad
     }
   }
 
-  /* Aloca a estrutura do vértice */
-  w = (struct vertice *) malloc(sizeof(struct vertice));
-  w->nome = strdup(g->vertices[v].nome);
-
   /* Adiciona a estrutura do vértice na lista l */
-  insere_cabeca_conteudo(l, w);
+  insere_cabeca_conteudo(l, g->vertices + v);
 }
 
 //------------------------------------------------------------------------------
