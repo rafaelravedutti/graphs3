@@ -1,0 +1,15 @@
+strict graph "exemplo4" {
+  A -- B
+  B -- C
+  C -- D
+  C -- A
+
+  F -- G
+  G -- H
+  H -- F
+
+  I -- K
+  I -- J
+  J -- L
+  J -- M
+}

@@ -1,0 +1,8 @@
+strict digraph "exemplo3" {
+  "A" -> "B" [peso=5]
+  "B" -> "C" [peso=1]
+  "A" -> "C" [peso=3]
+  "A" -> "D" [peso=1]
+  "C" -> "F" [peso=3]
+  "D" -> "B" [peso=2]
+}
