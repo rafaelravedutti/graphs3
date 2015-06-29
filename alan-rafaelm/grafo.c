@@ -503,55 +503,130 @@ char *nome_vertice(vertice v) ;
 unsigned int encontra_vertice_indice(struct vertice *vertices, unsigned int n_vertices, const char *nome) ;
 char *nome(grafo g) ;
 unsigned int n_vertices(grafo g) ;
-void _gera_bloco(grafo , unsigned int , lista, grafo) ;
+void _gera_bloco(grafo , lista, lista, unsigned int *, unsigned int ) ;
 lista gera_blocos(grafo , lista) ;
 void _vertices_corte(grafo , unsigned int , unsigned int *, unsigned int *, unsigned int *, unsigned int *, unsigned int *, unsigned int * ) ;
 lista vertices_corte(grafo) ;
 lista blocos(grafo) ;
 
 
+void _gera_bloco(grafo g, lista vertices_corte, lista vertices_bloco, unsigned int *n_vertices_bloco, unsigned int r) {
+  struct no *n;
+  struct aresta *a;
 
+  /* Se g->vertices r não está no lista de vertices do bloco (Y) */
+  if(!lista_contem(vertices_bloco, g->vertices + r)) {
+    /* Coloca g->vertices r no lista de vertices do bloco */
+    insere_cabeca_conteudo(vertices_bloco, g->vertices + r);
+    /* Se g->vertices r nao for certice de corte */
+    if(!lista_contem(vertices_corte, g->vertices + r)) {
+      /* Chama a função recursivamente para os vizinhos */
+      for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
+        a = (struct aresta *) n->conteudo;
+        _gera_bloco(g, vertices_corte, vertices_bloco, n_vertices_bloco, a->destino);
+      }
+    } else {
+      /* Se g->vertices r for vertice de corte */
+      for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
+        a = (struct aresta *) n->conteudo;
+        /* Chama recursivamente a função pra os vizinhos que não são vertice de corte */
+        if(!lista_contem(vertices_corte, g->vertices + (a->destino))) {
+          _gera_bloco(g, vertices_corte, vertices_bloco, n_vertices_bloco, a->destino);
+        }
+      }
+    }
+
+    ++(*n_vertices_bloco);
+  }
+}
 
 //------------------------------------------------------------------------------
-void _gera_bloco(grafo g, unsigned int i, lista vertices_corte, grafo bloco) {
+grafo gera_bloco(grafo g, unsigned int r, lista vertices_corte) {
   struct aresta *a;
+  struct vertice *v;
   struct no *n;
+  struct grafo *bloco;
+  lista vertices_bloco;
+  unsigned int n_vertices_bloco = 0, count = 0;
 
-  bloco->vertices[bloco->n_vertices++] = *(g->vertices + i);
+  inicializa_lista(&vertices_bloco);
+  insere_cabeca_conteudo(vertices_bloco, g->vertices + r);
+  n_vertices_bloco = 1;
 
-  if(!lista_contem(vertices_corte, g->vertices + i)) {
-    for(n = primeiro_no(g->vertices[i].arestas); n != NULL; n = proximo_no(n)) {
-      a = (struct aresta *) n->conteudo;
-      /* se ainda nao está no bloco */
-      if(encontra_vertice_indice(bloco->vertices, bloco->n_vertices, g->vertices[a->destino].nome) == -1) {
-        _gera_bloco(g, a->destino, vertices_corte, bloco);
+  /* Realiza uma busca adicionando todos os vértices do componente na lista */
+  for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
+    a = (struct aresta *) n->conteudo;
+    _gera_bloco(g, vertices_corte, vertices_bloco, &n_vertices_bloco, a->destino);
+  }
+
+  bloco = (grafo) malloc(sizeof(struct grafo));
+  
+  if(bloco != NULL) {
+    bloco->nome = (char *) NULL;
+    bloco->direcionado = 0;
+    bloco->n_vertices = 0;
+    bloco->ponderado = g->ponderado;
+    bloco->vertices = (struct vertice *) malloc(sizeof(struct vertice) * n_vertices_bloco);
+
+    if(bloco->vertices != NULL) {
+      for(n = vertices_bloco->primeiro; n != NULL; n = n->proximo) {
+        v = (struct vertice *) n->conteudo;
+
+        bloco->vertices[count].nome = strdup(v->nome);
+        bloco->vertices[count].arestas = v->arestas;
+
+        ++(v->arestas->ref_count);
+        ++count;
       }
     }
   }
+
+  destroi_lista(vertices_bloco, _mantem);
+  return bloco;
 }
 
 //-----------------------------------------------------------------------------
 lista gera_blocos(grafo g, lista vertices_corte) {
-  unsigned int i;
   lista lista_blocos;
   struct grafo *bloco;
+  unsigned int i, v, v_processados;
+  unsigned int *vertice_processado;
 
-  lista_blocos = (lista) malloc(sizeof(struct lista));
+  /* Inicializa a lista de blocos */
   inicializa_lista(&lista_blocos);
 
-  if (vertices_corte == NULL) {
-    insere_cabeca_conteudo(lista_blocos, g);
-  } else {
-    for (i = 0; i < g->n_vertices; ++i) {
-      bloco = (struct grafo *) malloc(sizeof(struct grafo));
-      bloco->vertices = (struct vertice *) malloc(sizeof(struct vertice) * g->n_vertices);
-      bloco->nome = NULL;
-      bloco->direcionado = 0;
-      bloco->ponderado = g->ponderado;
-      bloco->n_vertices = 0;
+  vertice_processado = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
 
-      _gera_bloco(g, i, vertices_corte, bloco);
-      insere_cabeca_conteudo(lista_blocos, bloco);
+  if(vertice_processado != NULL) {
+    for(i = 0; i < g->n_vertices; ++i) {
+      vertice_processado[i] = 0;
+    }
+
+    v_processados = 0;
+
+    /* Enquanto não forem processados todos os vértices de G */
+    while(v_processados < g->n_vertices) {
+      /* Procura um vértice em G ainda não processado */
+      for(v = 0; v < g->n_vertices && vertice_processado[v] == 1; ++v);
+      /* Se for vertice de corte, não tenta gerar bloco, pois será incluído por vizinho */
+      if (lista_contem(vertices_corte, g->vertices + v)){
+        vertice_processado[encontra_vertice_indice(g->vertices, g->n_vertices, bloco->vertices[i].nome)] = 1;
+        ++v_processados;
+      } else {
+        /* Gera bloco no qual está o vértice */
+        bloco = gera_bloco(g, v, vertices_corte);
+
+        if(bloco != NULL) {
+          /* Insere bloco na lista */
+          insere_cabeca_conteudo(lista_blocos, bloco);
+
+          /* Marca como processados todos os vértices do bloco (menos) */
+          for(i = 0; i < bloco->n_vertices; ++i) {
+            vertice_processado[encontra_vertice_indice(g->vertices, g->n_vertices, bloco->vertices[i].nome)] = 1;
+            ++v_processados;
+          }
+        }
+      }
     }
   }
   return lista_blocos;
