@@ -39,6 +39,7 @@ int main(void) {
     destroi_grafo(d);
   }
 
+
   /*
   d = arborescencia_caminhos_minimos(g, v);
   if(d != NULL) {
@@ -54,6 +55,12 @@ int main(void) {
   }
 
   fprintf(stdout, "Diametro = %ld\n", diametro(g));
+
+  if(conexo(g)) {
+    fprintf(stdout, "Conexo!\n");
+  } else {
+    fprintf(stdout, "Não é conexo!\n");
+  }
 
   if(fortemente_conexo(g)) {
     fprintf(stdout, "Fortemente conexo!\n");
