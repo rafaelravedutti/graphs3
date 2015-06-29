@@ -573,7 +573,7 @@ static grafo gera_componente(grafo g, unsigned int r) {
         for(no_arestas = v->arestas->primeiro; no_arestas != NULL; no_arestas = no_arestas->proximo) {
           a = (struct aresta *) no_arestas->conteudo;
 
-          /* Se o vértice é origem na aresta (isso garnate que ela seja adicionada apenas uma vez) */
+          /* Se o vértice é origem na aresta (isso garante que ela seja adicionada apenas uma vez) */
           if(v == g->vertices + a->origem) {
             /* Aloca a aresta */
             aresta_componente = (struct aresta *) malloc(sizeof(struct aresta));
@@ -644,267 +644,6 @@ lista componentes(grafo g) {
 }
 
 //------------------------------------------------------------------------------
-
-void insere_cabeca_conteudo(lista l, void *conteudo) ;
-no primeiro_no(lista l) ;
-no proximo_no(no n) ;
-void *conteudo(no n) ;
-char *nome_vertice(vertice v) ;
-unsigned int encontra_vertice_indice(struct vertice *vertices, unsigned int n_vertices, const char *nome) ;
-char *nome(grafo g) ;
-unsigned int n_vertices(grafo g) ;
-void _gera_bloco(grafo , lista, lista, unsigned int *, unsigned int ) ;
-lista gera_blocos(grafo , lista) ;
-void _vertices_corte(grafo , unsigned int , unsigned int *, unsigned int *, unsigned int *, unsigned int *, unsigned int *, unsigned int * ) ;
-lista vertices_corte(grafo) ;
-lista blocos(grafo) ;
-
-
-//------------------------------------------------------------------------------
-void _gera_bloco(grafo g, lista vertices_corte, lista vertices_bloco, unsigned int *n_vertices_bloco, unsigned int r) {
-  struct no *n;
-  struct aresta *a;
-
-  /* Se g->vertices r não está no lista de vertices do bloco (Y) */
-  if(!lista_contem(vertices_bloco, g->vertices + r)) {
-    /* Coloca g->vertices r no lista de vertices do bloco */
-    insere_cabeca_conteudo(vertices_bloco, g->vertices + r);
-    /* Se g->vertices r nao for certice de corte */
-    if(!lista_contem(vertices_corte, g->vertices + r)) {
-      /* Chama a função recursivamente para os vizinhos */
-      for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
-        a = (struct aresta *) n->conteudo;
-        _gera_bloco(g, vertices_corte, vertices_bloco, n_vertices_bloco, a->destino);
-      }
-    } else {
-      /* Se g->vertices r for vertice de corte */
-      for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
-        a = (struct aresta *) n->conteudo;
-        /* Chama recursivamente a função pra os vizinhos que não são vertice de corte */
-        if(!lista_contem(vertices_corte, g->vertices + (a->destino))) {
-          _gera_bloco(g, vertices_corte, vertices_bloco, n_vertices_bloco, a->destino);
-        }
-      }
-    }
-
-    ++(*n_vertices_bloco);
-  }
-}
-
-//------------------------------------------------------------------------------
-grafo gera_bloco(grafo g, unsigned int r, lista vertices_corte) {
-  struct aresta *a;
-  struct vertice *v;
-  struct no *n;
-  struct grafo *bloco;
-  lista vertices_bloco;
-  unsigned int n_vertices_bloco = 0, count = 0;
-
-  inicializa_lista(&vertices_bloco);
-  insere_cabeca_conteudo(vertices_bloco, g->vertices + r);
-  n_vertices_bloco = 1;
-
-  /* Realiza uma busca adicionando todos os vértices do componente na lista */
-  for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
-    a = (struct aresta *) n->conteudo;
-    _gera_bloco(g, vertices_corte, vertices_bloco, &n_vertices_bloco, a->destino);
-  }
-
-  bloco = (grafo) malloc(sizeof(struct grafo));
-  
-  if(bloco != NULL) {
-    bloco->nome = (char *) NULL;
-    bloco->direcionado = 0;
-    bloco->n_vertices = 0;
-    bloco->ponderado = g->ponderado;
-    bloco->vertices = (struct vertice *) malloc(sizeof(struct vertice) * n_vertices_bloco);
-
-    if(bloco->vertices != NULL) {
-      for(n = vertices_bloco->primeiro; n != NULL; n = n->proximo) {
-        v = (struct vertice *) n->conteudo;
-
-        bloco->vertices[count].nome = strdup(v->nome);
-        bloco->vertices[count].arestas = v->arestas;
-
-        ++(v->arestas->ref_count);
-        ++count;
-      }
-    }
-  }
-
-  destroi_lista(vertices_bloco, _mantem);
-  return bloco;
-}
-
-//-----------------------------------------------------------------------------
-lista gera_blocos(grafo g, lista vertices_corte) {
-  lista lista_blocos;
-  struct grafo *bloco;
-  unsigned int i, v, v_processados;
-  unsigned int *vertice_processado;
-
-  /* Inicializa a lista de blocos */
-  inicializa_lista(&lista_blocos);
-
-  vertice_processado = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
-
-  if(vertice_processado != NULL) {
-    for(i = 0; i < g->n_vertices; ++i) {
-      vertice_processado[i] = 0;
-    }
-
-    v_processados = 0;
-
-    /* Enquanto não forem processados todos os vértices de G */
-    while(v_processados < g->n_vertices) {
-      /* Procura um vértice em G ainda não processado */
-      for(v = 0; v < g->n_vertices && vertice_processado[v] == 1; ++v);
-      /* Se for vertice de corte, não tenta gerar bloco, pois será incluído por vizinho */
-      if (lista_contem(vertices_corte, g->vertices + v)){
-        vertice_processado[encontra_vertice_indice(g->vertices, g->n_vertices, bloco->vertices[i].nome)] = 1;
-        ++v_processados;
-      } else {
-        /* Gera bloco no qual está o vértice */
-        bloco = gera_bloco(g, v, vertices_corte);
-
-        if(bloco != NULL) {
-          /* Insere bloco na lista */
-          insere_cabeca_conteudo(lista_blocos, bloco);
-
-          /* Marca como processados todos os vértices do bloco (menos) */
-          for(i = 0; i < bloco->n_vertices; ++i) {
-            vertice_processado[encontra_vertice_indice(g->vertices, g->n_vertices, bloco->vertices[i].nome)] = 1;
-            ++v_processados;
-          }
-        }
-      }
-    }
-  }
-  return lista_blocos;
-}
-
-//-----------------------------------------------------------------------------
-void _vertices_corte(grafo g, unsigned int i, unsigned int *n_articulacoes, unsigned int *pre, unsigned int *pai, unsigned int *low, unsigned int *articulacoes, unsigned int *conta ) {
-  unsigned int j;
-  struct no *n;
-  struct aresta *a;
-  unsigned int v, i_adicionado, j_adicionado;
-
-
-  /* Incrementa o contador externoe o atribui a pre[i] */
-  pre[i] = ++(*conta);
-  /* No começo do laço, lowpoint de i é o próprio i */
-  low[i] = pre[i];
-  /* Laço para percorrer cada aresta de g->vertices[i] */
-  for (n = g->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
-    a = (struct aresta *) n->conteudo;
-    j = a->destino;
-    /* Se a ponta de g->vertices[i] ainda não foi foi incluída na pre-ordem */
-    if (pre[j] == -1) {
-      /* Indica que o j é um destino de g->vertices[i]*/
-      pai[j] = i;
-      /* Chama recursivamente a função para computar a pre-ordem filhos de j*/
-      _vertices_corte(g, j, n_articulacoes , pre, pai, low, articulacoes, conta);
-      /* Se o lowerpoint do filho j é menor, então lowerpoint de i também é o de j */
-      if (low[i] > low[j]){
-        low[i] = low[j];
-      }
-      if (low[j] == pre[j]) {
-        /* Achou aresta de corte */
-        i_adicionado = 0;
-        j_adicionado = 0;
-        for(v = 0; v < *n_articulacoes && i_adicionado && j_adicionado; ++v){
-          if (articulacoes[v] == i) {
-            i_adicionado = 1;
-          }
-          if (articulacoes[v] == j) {
-            j_adicionado = 1;
-          }
-        }
-        if (!i_adicionado) {
-          articulacoes[(*n_articulacoes)++] = i;
-        }
-        if (!j_adicionado) {
-          articulacoes[(*n_articulacoes)++] = j;
-        }
-      }
-    } else if (j!= pai[i] && low[i] > pre[j]) {
-      low[i] = pre[j];
-    }
-  }
-}
-
-//-----------------------------------------------------------------------------
-lista vertices_corte(grafo g) {
-  unsigned int *pre, *pai, *low, *articulacoes;
-  unsigned int i, conta = 0, n_articulacoes = 0;
-  vertice v, v_copia;
-  lista lista_articulacoes;
-  pre = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
-  pai = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
-  low = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
-  articulacoes = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
-  
-  lista_articulacoes = (lista) malloc(sizeof(struct lista));
-  inicializa_lista(&lista_articulacoes);
-
-  if (pre != NULL && pai != NULL && low != NULL && articulacoes != NULL) {
-    for (i = 0; i < g->n_vertices; ++i) {
-      pre[i] = -1;
-      articulacoes[i] = -1;
-    }
-    for (i = 0; i < g->n_vertices; ++i) {
-      if (pre[i] == -1) {
-        pai[i] = i;
-        _vertices_corte(g, i, &n_articulacoes, pre, pai, low, articulacoes, &conta);
-        conta = 0;
-      }
-    }
-  }
-
-  for (i = 0; i < n_articulacoes; ++i) {
-    v = g->vertices + articulacoes[i];
-    v_copia = (vertice) malloc (sizeof(struct vertice));
-    v_copia->arestas = (lista) malloc(sizeof(struct lista));
-
-    v_copia->nome = strdup(v->nome);
-    v_copia->arestas = v->arestas;
-
-    ++(v->arestas->ref_count);
-
-    insere_cabeca_conteudo(lista_articulacoes, v_copia);
-  }
-
-  free(pre);
-  free(pai);
-  free(low);
-  free(articulacoes);
-
-  if (n_articulacoes == 0){
-    return NULL;
-  }
-  return lista_articulacoes;
-}
-
-//-----------------------------------------------------------------------------
-lista blocos(grafo g) {
-  if(g->direcionado) {
-    return NULL;
-  }
-
-  lista vertices_de_corte, lista_blocos;
-  vertices_de_corte = vertices_corte(g);
-  /* Se a lista está vazia, então g só possui 1 bloco */
-  if(vertices_de_corte == NULL){
-    lista_blocos = (lista) malloc(sizeof(struct lista));
-    inicializa_lista(&lista_blocos);
-    insere_cabeca_conteudo(lista_blocos, g);
-  } else {
-    lista_blocos = gera_blocos(g, vertices_de_corte);
-  }
-  return lista_blocos;
-}
-
 //------------------------------------------------------------------------------
 static void _ordena(grafo g, lista l, unsigned int v, unsigned char *v_processado, unsigned int *v_pai) {
   struct no *n;
@@ -1331,8 +1070,268 @@ long int diametro(grafo g) {
       }
     }
   }
-
   /* Destroi o grafo de distâncias */
   destroi_grafo(dis);
   return diametro;
 }
+
+/*void _gera_bloco(grafo g, lista vertices_corte, lista vertices_bloco, unsigned int *n_vertices_bloco, unsigned int r) {
+  struct no *n;
+  struct aresta *a;
+
+  //Chama recursivamente a função pra os vizinhos que não são vertice de corte
+  if(!lista_contem(vertices_bloco, g->vertices + r)) {
+    //Se g->vertices r não está no lista de vertices do bloco (Y)
+    insere_cabeca_conteudo(vertices_bloco, g->vertices + r);
+    //Coloca g->vertices r no lista de vertices do bloco
+    if(!lista_contem(vertices_corte, g->vertices + r)) {
+      //Se g->vertices r nao for certice de corte
+      for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
+        a = (struct aresta *) n->conteudo;
+        _gera_bloco(g, vertices_corte, vertices_bloco, n_vertices_bloco, a->destino);
+      }
+    } else {
+      //Chama a função recursivamente para os vizinhos
+      for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
+        a = (struct aresta *) n->conteudo;
+        //Se g->vertices r for vertice de corte
+        if(!lista_contem(vertices_corte, g->vertices + (a->destino))) {
+          _gera_bloco(g, vertices_corte, vertices_bloco, n_vertices_bloco, a->destino);
+        }
+      }
+    }
+
+    ++(*n_vertices_bloco);
+  }
+}
+
+//------------------------------------------------------------------------------
+grafo gera_bloco(grafo g, unsigned int r, lista vertices_corte) {
+  struct aresta *a, *aresta_bloco;
+  struct vertice *v;
+  struct no *n, *no_arestas;
+  struct grafo *bloco;
+  lista vertices_bloco;
+  unsigned int n_vertices_bloco = 0, count = 0;
+
+  inicializa_lista(&vertices_bloco);
+  insere_cabeca_conteudo(vertices_bloco, g->vertices + r);
+  n_vertices_bloco = 1;
+
+  //Realiza uma busca adicionando todos os vértices do componente na lista
+  for(n = g->vertices[r].arestas->primeiro; n != NULL; n = n->proximo) {
+    a = (struct aresta *) n->conteudo;
+    _gera_bloco(g, vertices_corte, vertices_bloco, &n_vertices_bloco, a->destino);
+  }
+
+  bloco = (grafo) malloc(sizeof(struct grafo));
+  //Percorre todos os vértices da lista
+  if(bloco != NULL) {
+    bloco->nome = (char *) NULL;
+    bloco->direcionado = 0;
+    bloco->n_vertices = 0;
+    bloco->ponderado = g->ponderado;
+    bloco->vertices = (struct vertice *) malloc(sizeof(struct vertice) * n_vertices_bloco);
+    //Adiciona os vértices da lista na estrutura do componente
+    if(bloco->vertices != NULL) {
+      for(n = vertices_bloco->primeiro; n != NULL; n = n->proximo) {
+        v = (struct vertice *) n->conteudo;
+
+        bloco->vertices[count].nome = strdup(v->nome);
+        bloco->vertices[count].arestas = (struct lista *) malloc(sizeof(struct lista));
+        bloco->vertices[count].arestas->primeiro = NULL;
+
+        ++count;
+      }
+
+      //Percorre todos os vértices do bloco
+      for(n = vertices_bloco->primeiro, count = 0; n != NULL; n = n->proximo, ++count) {
+        v = (struct vertice *) n->conteudo;
+
+        //Percorre todas suas arestas adjacentes
+        for(no_arestas = v->arestas->primeiro; no_arestas != NULL; no_arestas = no_arestas->proximo) {
+          a = (struct aresta *) no_arestas->conteudo;
+
+          //Se o vértice é origem na aresta (isso garante que ela seja adicionada apenas uma vez)
+          if(v == g->vertices + a->origem) {
+            //Aloca a aresta
+            aresta_bloco = (struct aresta *) malloc(sizeof(struct aresta));
+
+            if(aresta_bloco != NULL) {
+              //Define os elementos da aresta
+              aresta_bloco->origem = count;
+              aresta_bloco->destino = encontra_vertice_indice(bloco->vertices, bloco->n_vertices, g->vertices[a->destino].nome);
+              aresta_bloco->peso = a->peso;
+
+              //Insere a aresta na lista de adjacência do vértice no bloco
+              insere_cabeca_conteudo(bloco->vertices[count].arestas, aresta_bloco);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  destroi_lista(vertices_bloco, _mantem);
+  return bloco;
+}
+
+//-----------------------------------------------------------------------------
+lista gera_blocos(grafo g, lista vertices_corte) {
+  lista lista_blocos;
+  struct grafo *bloco;
+  unsigned int i, v, v_processados;
+  unsigned int *vertice_processado;
+
+  //Inicializa a lista de blocos
+  inicializa_lista(&lista_blocos);
+
+  vertice_processado = (unsigned int *) malloc(sizeof(unsigned int) * g->n_vertices);
+
+  if(vertice_processado != NULL) {
+    for(i = 0; i < g->n_vertices; ++i) {
+      vertice_processado[i] = 0;
+    }
+
+    v_processados = 0;
+
+    //Enquanto não forem processados todos os vértices de G
+    while(v_processados < g->n_vertices) {
+      //Procura um vértice em G ainda não processado
+      for(v = 0; v < g->n_vertices && vertice_processado[v] == 1; ++v);
+      //Gera bloco no qual está o vértice
+      bloco = gera_bloco(g, v, vertices_corte);
+      if (lista_contem(vertices_corte, g->vertices + v)){
+        vertice_processado[v] = 1;
+        ++v_processados;
+      } else {
+
+        if(bloco != NULL) {
+          //Insere bloco na lista
+          insere_cabeca_conteudo(lista_blocos, bloco);
+
+          //Marca como processados todos os vértices do bloco (menos)
+          for(i = 0; i < bloco->n_vertices; ++i) {
+            vertice_processado[encontra_vertice_indice(g->vertices, g->n_vertices, bloco->vertices[i].nome)] = 1;
+            ++v_processados;
+          }
+        }
+      }
+    }
+  }
+  return lista_blocos;
+}
+
+//-----------------------------------------------------------------------------
+void _vertices_corte(grafo g, unsigned int i, unsigned int *n_articulacoes, unsigned int *pre, unsigned int *pai, unsigned int *low, unsigned int *articulacoes, unsigned int *conta ) {
+  unsigned int j;
+  struct no *n;
+  struct aresta *a;
+  unsigned int v, i_adicionado, j_adicionado;
+
+
+  //Incrementa o contador externoe o atribui a pre[i]
+  pre[i] = ++(*conta);
+  //No começo do laço, lowpoint de i é o próprio i
+  low[i] = pre[i];
+  //Laço para percorrer cada aresta de g->vertices[i]
+  for (n = g->vertices[i].arestas->primeiro; n != NULL; n = n->proximo) {
+    a = (struct aresta *) n->conteudo;
+    j = a->destino;
+    //Se a ponta de g->vertices[i] ainda não foi foi incluída na pre-ordem
+    if (pre[j] == -1) {
+      //Indica que o j é um destino de g->vertices[i
+      pai[j] = i;
+      //Chama recursivamente a função para computar a pre-ordem filhos de 
+      _vertices_corte(g, j, n_articulacoes , pre, pai, low, articulacoes, conta);
+      //Se o lowerpoint do filho j é menor, então lowerpoint de i também é o de j
+      if (low[i] > low[j]){
+        low[i] = low[j];
+      }
+      if (low[j] == pre[j]) {
+        //Achou aresta de corte
+        i_adicionado = 0;
+        j_adicionado = 0;
+        for(v = 0; v < *n_articulacoes && i_adicionado && j_adicionado; ++v){
+          if (articulacoes[v] == i) {
+            i_adicionado = 1;
+          }
+          if (articulacoes[v] == j) {
+            j_adicionado = 1;
+          }
+        }
+        if (!i_adicionado) {
+          articulacoes[(*n_articulacoes)++] = i;
+        }
+        if (!j_adicionado) {
+          articulacoes[(*n_articulacoes)++] = j;
+        }
+      }
+    } else if (j!= pai[i] && low[i] > pre[j]) {
+      low[i] = pre[j];
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+lista vertices_corte(grafo g) {
+  unsigned int *pre, *pai, *low, *articulacoes;
+  unsigned int i, conta = 0, n_articulacoes = 0;
+  lista lista_articulacoes;
+  pre = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
+  pai = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
+  low = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
+  articulacoes = (unsigned int *) malloc(g->n_vertices * sizeof(unsigned int));
+  
+  lista_articulacoes = (lista) malloc(sizeof(struct lista));
+  inicializa_lista(&lista_articulacoes);
+
+  if (pre != NULL && pai != NULL && low != NULL && articulacoes != NULL) {
+    for (i = 0; i < g->n_vertices; ++i) {
+      pre[i] = -1;
+      articulacoes[i] = -1;
+    }
+    for (i = 0; i < g->n_vertices; ++i) {
+      if (pre[i] == -1) {
+        pai[i] = i;
+        _vertices_corte(g, i, &n_articulacoes, pre, pai, low, articulacoes, &conta);
+        conta = 0;
+      }
+    }
+  }
+
+  for (i = 0; i < n_articulacoes; ++i) {
+    insere_cabeca_conteudo(lista_articulacoes, g->vertices + articulacoes[i]);
+  }
+
+  free(pre);
+  free(pai);
+  free(low);
+  free(articulacoes);
+
+  if (n_articulacoes == 0){
+    return NULL;
+  }
+  return lista_articulacoes;
+}
+
+//-----------------------------------------------------------------------------
+lista blocos(grafo g) {
+  if(g->direcionado) {
+    return NULL;
+  }
+
+  lista vertices_de_corte, lista_blocos;
+  vertices_de_corte = vertices_corte(g);
+  //Se a lista está vazia, então g só possui 1 bloco
+  if(vertices_de_corte == NULL){
+    lista_blocos = (lista) malloc(sizeof(struct lista));
+    inicializa_lista(&lista_blocos);
+    insere_cabeca_conteudo(lista_blocos, g);
+  } else {
+    lista_blocos = gera_blocos(g, vertices_de_corte);
+  }
+  destroi_lista(vertices_de_corte, _mantem);
+  return lista_blocos;
+}
+*/

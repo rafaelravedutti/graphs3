@@ -10,7 +10,7 @@ int main(void) {
   struct grafo *g, *d, *c;
   struct vertice *v;
   struct no *n;
-  lista l, l_blocos;
+  lista l;
 
   g = le_grafo(stdin);
   escreve_grafo(stdout, g);
@@ -61,14 +61,15 @@ int main(void) {
     fprintf(stdout, "Não é fortemente conexo!\n");
   }
 
-  if((l_blocos = blocos(g)) != NULL) {
+  /*if((l_blocos = blocos(g)) != NULL) {
     fprintf(stderr, "\n--Blocos criados:\n" );
-    for(n = l_blocos->primeiro; n != NULL; n = n->proximo) {
-      escreve_grafo(stdout, (struct grafo *) n->conteudo);
+    for(n = primeiro_no(l); n != NULL; n = proximo_no(n)) {
+      c = (struct grafo *) conteudo(n);
+      escreve_grafo(stdout, c);
     }
 
-    destroi_lista(l_blocos, _destroi);
-  }
+    destroi_lista(l_blocos, destroi_grafo);
+  }*/
 
   destroi_grafo(g);
   return 0;
