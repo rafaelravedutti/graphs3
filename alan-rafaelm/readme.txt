@@ -6,23 +6,6 @@ Alan Peterson Carvalho Silva - alan - GRR20110556
 
 Informações sobre o trabalho:
 
------------------------- Quanto a função blocos -------------------------
-
-Não foi possível testar e corrigir a implementação da função blocos a tempo, portanto
-ela apenas está retornando NULL e sua implementação (que ainda apresenta problemas)
-foi comentada no arquivo grafo.c
-
-Uma breve explicação do algoritmo utilizado pela função é:
-
-- Se g->vertices r não está no lista de vertices do bloco
-- Coloca g->vertices r no lista de vertices do bloco
-- Se g->vertices r nao for certice de corte
-- Chama a função recursivamente para os vizinhos
-- Se g->vertices r for vertice de corte
-- Chama recursivamente a função pra os vizinhos que não são vertice de corte
-
------------------------ Quanto ao resto do trabalho -----------------------
-
 A maior parte das funções foram implementadas e testadas com grafos pequenos. Na
 hora de gerar uma lista de vértices em ordenação topológica (ordena) é necessário
 usar na função destroi_lista uma função que não faça nada em destroi, pois os vértices
